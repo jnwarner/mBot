@@ -73,7 +73,6 @@ const commands = {
 		fs.readFile('playlist.txt', function(err, data){
     		if(err) throw err;
     		var lines = data.toString().split('\n');
-			var que = "";
 			queue[msg.guild.id] = {}; 
 			queue[msg.guild.id].playing = false;
 			queue[msg.guild.id].songs = [];
@@ -81,20 +80,18 @@ const commands = {
 
 			console.log(lines.length)
 
-			for (i = 0; i < lines.length; i++)
-			{
-				setTimeout(function(i, lines){
-					console.log('line ' + i);
-					console.log('link ' + lines[i]);
-					que = lines[i];
-
-					yt.getInfo(que, (err, info) => {
-						if(err) return msg.channel.sendMessage('Invalid YouTube Link: ' + err);
-						queue[msg.guild.id].songs.push({url: que, title: info.title, requester: msg.author.username});
-						console.log(`added **${info.title}** to the queue`);
-					});
-				}, 500);
-			}
+				for (i = 0; i < lines.length; i++) {
+					(function(i) {
+						setTimeout(function() {
+							yt.getInfo(lines[i].toString(), (err, info) => {
+								if(err) return console.log('Invalid YouTube Link: ' + err);
+								queue[msg.guild.id].songs.push({url: lines[i].toString(), title: info.title, requester: msg.author.username});
+								console.log(`added **${info.title}** to the queue`);
+							});
+						}, 300 * i)
+					})(i);
+				}
+				 
 
 			console.log('read successfully!');
  		})
@@ -110,7 +107,7 @@ const commands = {
 				yt.getInfo(term, (err, info) => {
 					if(err) return msg.channel.sendMessage('Invalid YouTube Link: ' + err);
 					if (!queue.hasOwnProperty(msg.guild.id)) queue[msg.guild.id] = {}, queue[msg.guild.id].playing = false, queue[msg.guild.id].songs = [];
-					queue[msg.guild.id].songs.push({url: term, title: info.title, requester: msg.author.username});
+					queue[msg.guild.id].songs.unshift({url: term, title: info.title, requester: msg.author.username});
 					msg.channel.sendMessage(`added **${info.title}** to the queue`);
 				});
 			} else {
@@ -121,14 +118,14 @@ const commands = {
   					} else {
 						console.log("Success!");
     					url_id = JSON.stringify(result.items[0].id.videoId, null, 2);
-						url_id = url_id.substring(1, url_id.length - 1);
+						url_id = url_id.toString().substring(1, url_id.length - 1);
 						console.log(url_id);
 
 						let url_f = url_base + url_id;
 						yt.getInfo(url_f.toString(), (err, info) => {
 							if(err) return msg.channel.sendMessage('Invalid YouTube Link: ' + err);
 								if (!queue.hasOwnProperty(msg.guild.id)) queue[msg.guild.id] = {}, queue[msg.guild.id].playing = false, queue[msg.guild.id].songs = [];
-									queue[msg.guild.id].songs.push({url: url_f, title: info.title, requester: msg.author.username});
+									queue[msg.guild.id].songs.unshift({url: url_f, title: info.title, requester: msg.author.username});
 										msg.channel.sendMessage(`added **${info.title}** to the queue`);
 						});
   					}
