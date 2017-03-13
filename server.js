@@ -229,6 +229,8 @@ const commands = {
 							tokens.prefix + 'resume : Resumes the music. (admins only)',
 							tokens.prefix + 'skip   : Skips the playing song. (requires majority vote)',
 							tokens.prefix + 'time   : Shows the playtime of the song.',
+							tokens.prefix + 'rewind   : Rewinds song 30 seconds.',
+							tokens.prefix + 'forward   : Fast forwards song 30 seconds.',
 							'!=========================================================!',
 							'```'];
 						msg.channel.sendMessage(tosend.join('\n'));
