@@ -137,35 +137,28 @@ const commands = {
 											msg.channel.sendMessage(`time: ${Math.floor(dispatcher.time / 60000)}:${Math.floor((dispatcher.time % 60000) / 1000) < 10 ? '0' + Math.floor((dispatcher.time % 60000) / 1000) : Math.floor((dispatcher.time % 60000) / 1000)}`);
 										}
 									}
-								} else if (m.content.startsWith(tokens.prefix + 'rewind')) {
-									m.channel.sendMessage("Rewinding!").then(() => {
-										if (dispatcher.time > 30000) {
-											let time = dispatcher.time;
-											play(currentSong, ((time - 30000) / 1000));
-											rewind = true;
-										} else {
-											play(currentSong);
-											rewind = true;
-										}
-									});
-								} else if (m.content.startsWith(tokens.prefix + 'forward')) {
-									m.channel.sendMessage("Fast forwarding!").then(() => {
-										play(currentSong, ((dispatcher.time + 30000) / 1000));
-										forward = true;
-									});
-								}
+								} //else if (m.content.startsWith(tokens.prefix + 'rewind')) {
+								// 	m.channel.sendMessage("Rewinding!").then(() => {
+								// 		if (dispatcher.time > 30000) {
+								// 			let time = dispatcher.time;
+								// 			play(currentSong, ((time - 30000) / 1000));
+								// 			rewind = true;
+								// 		} else {
+								// 			play(currentSong);
+								// 			rewind = true;
+								// 		}
+								// 	});
+								// } else if (m.content.startsWith(tokens.prefix + 'forward')) {
+								// 	m.channel.sendMessage("Fast forwarding!").then(() => {
+								// 		play(currentSong, ((dispatcher.time + 30000) / 1000));
+								// 		forward = true;
+								// 	});
+								// }
 							});
 							dispatcher.on('end', () => {
 								console.log('here we be')
 								collector.stop();
-								if (!rewind && !forward) {
-									play(queue[msg.guild.id].uArray.length === 0 ? queue[msg.guild.id].rArray.shift() : queue[msg.guild.id].uArray.shift())
-								} else if (rewind) {
-									rewind = false;
-									
-								} else {
-									forward = false;
-								}
+								play(queue[msg.guild.id].uArray.length === 0 ? queue[msg.guild.id].rArray.shift() : queue[msg.guild.id].uArray.shift())
 								//play(queue[msg.guild.id].songs.shift());
 							});
 							dispatcher.on('error', (err) => {
@@ -229,8 +222,6 @@ const commands = {
 							tokens.prefix + 'resume : Resumes the music. (admins only)',
 							tokens.prefix + 'skip   : Skips the playing song. (requires majority vote)',
 							tokens.prefix + 'time   : Shows the playtime of the song.',
-							tokens.prefix + 'rewind   : Rewinds song 30 seconds.',
-							tokens.prefix + 'forward   : Fast forwards song 30 seconds.',
 							'!=========================================================!',
 							'```'];
 						msg.channel.sendMessage(tosend.join('\n'));
@@ -285,7 +276,9 @@ const commands = {
 					let url_id = "";
 					let url_base = "https://youtu.be/";
 
-					if (term == '' || term === undefined || term == '-add' || term == '-add ') return msg.channel.sendMessage(`You must add a url, or youtube video id after ${tokens.prefix}add`);
+					console.log(term);
+
+					if (term == '' || term === undefined || term == '-play' || term == '-play ') return msg.channel.sendMessage(`You must specify a video name or URL after ${tokens.prefix}play!\n` + "```Usage: " + tokens.prefix + "play [term] [url]```");
 					else {
 						if ((term.charAt(0) == 'w' && term.charAt(1) == 'w' && term.charAt(2) == 'w' && term.charAt(3) == '.') || (term.charAt(0) == 'h' && term.charAt(1) == 't' && term.charAt(2) == 't' && term.charAt(3) == 'p' && (term.charAt(4) == ':' || (term.charAt(4) == 's' && term.charAt(5) == ':')))) {
 							if (term.toString() !== null) {
