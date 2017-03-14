@@ -20,6 +20,8 @@ let firstRun = true;
 let rewind = false;
 let forward = false;
 let currentSong;
+let voiceChannel;
+let textChannel;
 
 
 
@@ -287,7 +289,7 @@ const commands = {
 									if (info.livestream === '1') return msg.channel.sendMessage('This is a livestream!');
 									console.log(info);
 									if (!queue.hasOwnProperty(msg.guild.id)) queue[msg.guild.id] = {}, queue[msg.guild.id].playing = false, queue[msg.guild.id].songs = [], queue[msg.guild.id].rArray = [], queue[msg.guild.id].uArray = [];
-									queue[msg.guild.id].uArray.push({ url: term, title: info.title, requester: msg.author.username});
+									queue[msg.guild.id].uArray.push({ url: term, title: info.title, requester: msg.author.username });
 									//queue[msg.guild.id].songs.unshift({ url: term, title: info.title, requester: msg.author.username });
 									msg.channel.sendMessage(`**${info.title}** has been added to the queue!`);
 								});
@@ -325,6 +327,55 @@ const commands = {
 					}
 				}
 			}
+		}
+	},
+	'settext': (msg) => {
+		let channels = msg.guild.channels;
+		if (msg.author.id === msg.guild.owner.id) {
+			let term = msg.content.substring(msg.content.indexOf(' ') + 1);
+			if (term == '-settext') {
+				msg.channel.sendMessage("No text channel was provided!\n" + "```Usage: " + tokens.prefix + "settext [text channel]```");
+			} else {
+				if (channels.find('name', term) === null) {
+					msg.reply("Couln't find a channel with that name!")
+				} else {
+					let toSet = channels.find('name', term);
+					console.log(toSet.id);
+					if (toSet.type !== 'text') {
+						msg.channel.sendMessage("You must provide the name of a text channel!\n" + "```Usage: " + tokens.prefix + "settext [text channel]```");
+					} else {
+
+						msg.reply("Okay! #**" + toSet.name + "** set as music bot command channel! Please issue further commands here!");
+						textChannel = toSet.id;
+					}
+				}
+			}
+		} else {
+			msg.reply("You're not the owner :(");
+		}
+	},
+	'setvoice': (msg) => {
+		let channels = msg.guild.channels;
+		if (msg.author.id === msg.guild.owner.id) {
+			let term = msg.content.substring(msg.content.indexOf(' ') + 1);
+			if (term == '-setvoice') {
+				msg.channel.sendMessage("No voice channel was provided!\n" + "```Usage: " + tokens.prefix + "setvoice [voice channel]```");
+			} else {
+				if (channels.find('name', term) === null) {
+					msg.reply("Couln't find a channel with that name!")
+				} else {
+					let toSet = channels.find('name', term);
+					console.log(toSet.id);
+					if (toSet.type !== 'voice') {
+						msg.reply("You must provide the name of a voice channel!\n" + "```Usage: " + tokens.prefix + "setvoice [voice channel]```");
+					} else {
+						msg.reply("Okay! **" + toSet.name + "** set as music bot voice channel! Please issue further commands while in this channel!");
+						voiceChannel = toSet.id;
+					}
+				}
+			}
+		} else {
+			msg.reply("You're not the owner :(");
 		}
 	},
 	'join': (msg) => {
