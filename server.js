@@ -31,19 +31,7 @@ const commands = {
 			if (msg.guild.channels.find('name', 'general') === null) {
 				msg.channel.sendMessage("Set a text channel with " + tokens.prefix + "settext and voice channel with " + tokens.prefix + "setvoice");
 			} else {
-				guilds[msg.guild.id].textChannel = msg.guild.channels.find('name', 'general');
-				guilds[msg.guild.id].voiceChannel = msg.guild.channels.find('name', 'General');
-				guilds[msg.guild.id].queue = {};
-				guilds[msg.guild.id].queue.uArray = [];
-				guilds[msg.guild.id].queue.rArray = [];
-				guilds[msg.guild.id].uniqueSkips = [];
-				guilds[msg.guild.id].dispatcher;
-				guilds[msg.guild.id].ran = false;
-				guilds[msg.guild.id].isPaused = false;
-				guilds[msg.guild.id].firstRun = true;
-				guilds[msg.guild.id].changeVoice = false;
-				commands.radio(msg);
-				msg.channel.sendMessage("Hi! Since this is the first run I set the channels by default to #**" + guilds[msg.guild.id].textChannel.name + "** for bot commands, and **" + guilds[msg.guild.id].voiceChannel.name + "** for audio!\nSet a text channel with " + tokens.prefix + "**settext** and voice channel with " + tokens.prefix + "**setvoice**");
+				init(msg);
 			}
 		} else {
 			if (msg.channel.id !== guilds[msg.guild.id].textChannel.id) {
@@ -73,27 +61,35 @@ const commands = {
 									msg.member.voiceChannel.leave();
 								});
 								msg.channel.sendMessage(`Playing: **${song.title}** as requested by: **${song.requester}**`);
-								let dispatcher = msg.guild.voiceConnection.playStream(yt(song.url, { audioonly: true }), { passes: tokens.passes, seek: seek });
-								let collector = msg.channel.createCollector(m => m);
+								guilds[msg.guild.id].dispatcher = msg.guild.voiceConnection.playStream(yt(song.url, { audioonly: true }), { passes: tokens.passes, seek: seek });
+								console.log(guilds[msg.guild.id].firstRun);
+								console.log(msg.channel);
 								if (guilds[msg.guild.id].firstRun) {
 									guilds[msg.guild.id].queue.uArray.length === 0 ? guilds[msg.guild.id].queue.rArray.shift() : guilds[msg.guild.id].queue.uArray.shift();
+									guilds[msg.guild.id].collector = new Discord.MessageCollector(msg.channel, m => m);
 									guilds[msg.guild.id].firstRun = false;
 								}
+								// if (!guilds[msg.guild.id].firstRun) {
+
+								// 	if (collector === undefined || collector === null) {
+								// 		console.log('collector was undefined');
+								// 		collector = new Discord.MessageCollector(msg.channel, m => m);
+								// 	}
+								// }
+								console.log(guilds[msg.guild.id].collector);
 								setInterval(() => {
 									if (guilds[msg.guild.id].changeVoice) {
-										delete collector;
-										delete dispatcher;
-										guilds[msg.guild.id].changeVoice = false;
+										guilds[msg.guild.id].collector.stop();
 									}
 								}, 500);
-								collector.on('message', m => {
+								guilds[msg.guild.id].collector.on('message', m => {
 									setInterval(function () {
 										members = voiceChannel.members.array().length;
 										if (!guilds[m.guild.id].isPaused) {
 											if (members < 2) {
-												dispatcher.pause();
+												guilds[msg.guild.id].dispatcher.pause();
 											} else {
-												dispatcher.resume();
+												guilds[msg.guild.id].dispatcher.resume();
 											}
 										}
 									}, 500);
@@ -107,7 +103,7 @@ const commands = {
 												if (m.member.voiceChannel.name !== guilds[m.guild.id].voiceChannel.name) {
 													m.channel.sendMessage("Wrong Voice Channel! Are you in the Music voice channel?");
 												} else {
-													m.channel.sendMessage('paused').then(() => { dispatcher.pause(); });
+													m.channel.sendMessage('paused').then(() => { guilds[msg.guild.id].dispatcher.pause(); });
 													guilds[m.guild.id].isPaused = true;
 												}
 											}
@@ -122,7 +118,7 @@ const commands = {
 												if (m.member.voiceChannel.name !== guilds[m.guild.id].voiceChannel.name) {
 													m.channel.sendMessage("Wrong Voice Channel! Are you in the Music voice channel?");
 												} else {
-													m.channel.sendMessage('resumed').then(() => { dispatcher.resume(); });
+													m.channel.sendMessage('resumed').then(() => { guilds[msg.guild.id].dispatcher.resume(); });
 													guilds[m.guild.id].isPaused = false;
 												}
 											}
@@ -173,27 +169,27 @@ const commands = {
 												if (m.member.voiceChannel.name !== guilds[msg.guild.id].voiceChannel.name) {
 													m.channel.sendMessage("Wrong Voice Channel! Are you in the Music voice channel?");
 												} else {
-													msg.channel.sendMessage(dispatcher.time);
-													msg.channel.sendMessage(`time: ${Math.floor(dispatcher.time / 60000)}:${Math.floor((dispatcher.time % 60000) / 1000) < 10 ? '0' + Math.floor((dispatcher.time % 60000) / 1000) : Math.floor((dispatcher.time % 60000) / 1000)}`);
+													msg.channel.sendMessage(guilds[msg.guild.id].dispatcher.time);
+													msg.channel.sendMessage(`time: ${Math.floor(guilds[msg.guild.id].dispatcher.time / 60000)}:${Math.floor((guilds[msg.guild.id].dispatcher.time % 60000) / 1000) < 10 ? '0' + Math.floor((guilds[msg.guild.id].dispatcher.time % 60000) / 1000) : Math.floor((guilds[msg.guild.id].dispatcher.time % 60000) / 1000)}`);
 												}
 											}
 										}
 									}
 								});
-								dispatcher.on('end', () => {
+								guilds[msg.guild.id].dispatcher.on('end', () => {
 									console.log('here we be')
-									collector.stop();
+									guilds[msg.guild.id].collector.stop();
 									play(guilds[msg.guild.id].queue.uArray.length === 0 ? guilds[msg.guild.id].queue.rArray.shift() : guilds[msg.guild.id].queue.uArray.shift())
 									//play(queue[msg.guild.id].songs.shift());
 								});
-								dispatcher.on('error', (err) => {
+								guilds[msg.guild.id].dispatcher.on('error', (err) => {
 									return msg.channel.sendMessage('error: ' + err).then(() => {
-										collector.stop();
+										guilds[msg.guild.id].collector.stop();
 										play(guilds[msg.guild.id].queue.uArray.length === 0 ? guilds[msg.guild.id].queue.rArray.shift() : guilds[msg.guild.id].queue.uArray.shift());
 									});
 								});
 							})(guilds[msg.guild.id].queue.uArray.length === 0 ? guilds[msg.guild.id].queue.rArray[0] : guilds[msg.guild.id].queue.uArray[0]);
-						}, 5000);
+						}, 1500);
 					}
 				}
 			}
@@ -205,19 +201,7 @@ const commands = {
 			if (msg.guild.channels.find('name', 'general') === null) {
 				msg.channel.sendMessage("Set a text channel with " + tokens.prefix + "settext and voice channel with " + tokens.prefix + "setvoice");
 			} else {
-				guilds[msg.guild.id].textChannel = msg.guild.channels.find('name', 'general');
-				guilds[msg.guild.id].voiceChannel = msg.guild.channels.find('name', 'General');
-				guilds[msg.guild.id].queue = {};
-				guilds[msg.guild.id].queue.uArray = [];
-				guilds[msg.guild.id].queue.rArray = [];
-				guilds[msg.guild.id].uniqueSkips = [];
-				guilds[msg.guild.id].dispatcher;
-				guilds[msg.guild.id].ran = false;
-				guilds[msg.guild.id].isPaused = false;
-				guilds[msg.guild.id].firstRun = true;
-				guilds[msg.guild.id].changeVoice = false;
-				commands.radio(msg);
-				msg.channel.sendMessage("Hi! Since this is the first run I set the channels by default to #**" + guilds[msg.guild.id].textChannel.name + "** for bot commands, and **" + guilds[msg.guild.id].voiceChannel.name + "** for audio!\nSet a text channel with " + tokens.prefix + "**settext** and voice channel with " + tokens.prefix + "**setvoice**");
+				init(msg);
 			}
 		} else {
 			if (msg.channel.id !== guilds[msg.guild.id].textChannel.id) {
@@ -243,19 +227,7 @@ const commands = {
 			if (msg.guild.channels.find('name', 'general') === null) {
 				msg.channel.sendMessage("Set a text channel with " + tokens.prefix + "settext and voice channel with " + tokens.prefix + "setvoice");
 			} else {
-				guilds[msg.guild.id].textChannel = msg.guild.channels.find('name', 'general');
-				guilds[msg.guild.id].voiceChannel = msg.guild.channels.find('name', 'General');
-				guilds[msg.guild.id].queue = {};
-				guilds[msg.guild.id].queue.uArray = [];
-				guilds[msg.guild.id].queue.rArray = [];
-				guilds[msg.guild.id].uniqueSkips = [];
-				guilds[msg.guild.id].dispatcher;
-				guilds[msg.guild.id].ran = false;
-				guilds[msg.guild.id].isPaused = false;
-				guilds[msg.guild.id].firstRun = true;
-				guilds[msg.guild.id].changeVoice = false;
-				commands.radio(msg);
-				msg.channel.sendMessage("Hi! Since this is the first run I set the channels by default to #**" + guilds[msg.guild.id].textChannel.name + "** for bot commands, and **" + guilds[msg.guild.id].voiceChannel.name + "** for audio!\nSet a text channel with " + tokens.prefix + "**settext** and voice channel with " + tokens.prefix + "**setvoice**");
+				init(msg);
 			}
 		} else {
 			if (msg.channel.id !== guilds[msg.guild.id].textChannel.id) {
@@ -293,19 +265,7 @@ const commands = {
 			if (msg.guild.channels.find('name', 'general') === null) {
 				msg.channel.sendMessage("Set a text channel with " + tokens.prefix + "settext and voice channel with " + tokens.prefix + "setvoice");
 			} else {
-				guilds[msg.guild.id].textChannel = msg.guild.channels.find('name', 'general');
-				guilds[msg.guild.id].voiceChannel = msg.guild.channels.find('name', 'General');
-				guilds[msg.guild.id].queue = {};
-				guilds[msg.guild.id].queue.uArray = [];
-				guilds[msg.guild.id].queue.rArray = [];
-				guilds[msg.guild.id].uniqueSkips = [];
-				guilds[msg.guild.id].dispatcher;
-				guilds[msg.guild.id].ran = false;
-				guilds[msg.guild.id].isPaused = false;
-				guilds[msg.guild.id].firstRun = true;
-				guilds[msg.guild.id].changeVoice = false;
-				commands.radio(msg);
-				msg.channel.sendMessage("Hi! Since this is the first run I set the channels by default to #**" + guilds[msg.guild.id].textChannel.name + "** for bot commands, and **" + guilds[msg.guild.id].voiceChannel.name + "** for audio!\nSet a text channel with " + tokens.prefix + "**settext** and voice channel with " + tokens.prefix + "**setvoice**");
+				init(msg);
 			}
 		} else {
 			if (msg.channel.id !== guilds[msg.guild.id].textChannel.id) {
@@ -316,6 +276,7 @@ const commands = {
 				guilds[msg.guild.id].queue.uArray = [];
 				guilds[msg.guild.id].queue.rArray = [];
 				guilds[msg.guild.id].uniqueSkips = [];
+				guilds[msg.guild.id].collector;
 				guilds[msg.guild.id].ran = false;
 				guilds[msg.guild.id].isPaused = false;
 				guilds[msg.guild.id].firstRun = true;
@@ -361,19 +322,7 @@ const commands = {
 			if (msg.guild.channels.find('name', 'general') === null) {
 				msg.channel.sendMessage("Set a text channel with " + tokens.prefix + "settext and voice channel with " + tokens.prefix + "setvoice");
 			} else {
-				guilds[msg.guild.id].textChannel = msg.guild.channels.find('name', 'general');
-				guilds[msg.guild.id].voiceChannel = msg.guild.channels.find('name', 'General');
-				guilds[msg.guild.id].queue = {};
-				guilds[msg.guild.id].queue.uArray = [];
-				guilds[msg.guild.id].queue.rArray = [];
-				guilds[msg.guild.id].uniqueSkips = [];
-				guilds[msg.guild.id].dispatcher;
-				guilds[msg.guild.id].ran = false;
-				guilds[msg.guild.id].isPaused = false;
-				guilds[msg.guild.id].firstRun = true;
-				guilds[msg.guild.id].changeVoice = false;
-				commands.radio(msg);
-				msg.channel.sendMessage("Hi! Since this is the first run I set the channels by default to #**" + guilds[msg.guild.id].textChannel.name + "** for bot commands, and **" + guilds[msg.guild.id].voiceChannel.name + "** for audio!\nSet a text channel with " + tokens.prefix + "**settext** and voice channel with " + tokens.prefix + "**setvoice**");
+				init(msg);
 			}
 		} else {
 			if (msg.channel.id !== guilds[msg.guild.id].textChannel.id) {
@@ -453,7 +402,7 @@ const commands = {
 				guilds[msg.guild.id].queue.uArray = [];
 				guilds[msg.guild.id].queue.rArray = [];
 				guilds[msg.guild.id].uniqueSkips = [];
-				guilds[msg.guild.id].dispatcher;
+				guilds[msg.guild.id].collector;
 				guilds[msg.guild.id].ran = false;
 				guilds[msg.guild.id].isPaused = false;
 				guilds[msg.guild.id].firstRun = true;
@@ -476,6 +425,7 @@ const commands = {
 
 								msg.reply("Okay! #**" + toSet.name + "** set as music bot command channel! Please issue further commands here!");
 								guilds[msg.guild.id].textChannel = toSet;
+								guilds[msg.guild.id].collector = new new Discord.MessageCollector(toSet.channel, m => m);
 							}
 						}
 					}
@@ -523,7 +473,7 @@ const commands = {
 				guilds[msg.guild.id].queue.uArray = [];
 				guilds[msg.guild.id].queue.rArray = [];
 				guilds[msg.guild.id].uniqueSkips = [];
-				guilds[msg.guild.id].dispatcher;
+				guilds[msg.guild.id].collector;
 				guilds[msg.guild.id].ran = false;
 				guilds[msg.guild.id].isPaused = false;
 				guilds[msg.guild.id].firstRun = true;
@@ -545,14 +495,10 @@ const commands = {
 								if (toSet[i].type === 'voice') {
 									console.log(toSet[i].name + ' ' + toSet[i].id)
 									guilds[msg.guild.id].voiceChannel = toSet[i];
-									guilds[msg.guild.id].queue.playing = false;
 									setTimeout(() => {
 										guilds[msg.guild.id].voiceChannel.join().then(connection => console.log('Connected!')).catch(console.error);
-										if (guilds[msg.guild.id].queue.playing) {
-											commands.start(msg);
-											guilds[msg.guild.id].queue.uArray.length === 0 ? guilds[msg.guild.id].queue.rArray.shift() : guilds[msg.guild.id].queue.uArray.shift()
-										}
-									}, 1000);
+										commands.start();
+									}, 50);
 								}
 							}
 						}
@@ -586,8 +532,7 @@ const commands = {
 								setTimeout(() => {
 									guilds[msg.guild.id].voiceChannel.join().then(connection => console.log('Connected!')).catch(console.error);
 									if (guilds[msg.guild.id].queue.playing) {
-										commands.start(msg);
-										guilds[msg.guild.id].queue.uArray.length === 0 ? guilds[msg.guild.id].queue.rArray.shift() : guilds[msg.guild.id].queue.uArray.shift()
+										guilds[msg.guild.id].dispatcher.end();
 									}
 								}, 1000);
 							}
@@ -618,6 +563,25 @@ client.on('ready', () => {
 		guild[guild.id] = {};
 	});
 });
+
+function init(msg) {
+	guilds[msg.guild.id].textChannel = msg.guild.channels.find('name', 'general');
+	guilds[msg.guild.id].voiceChannel = msg.guild.channels.find('name', 'General');
+	guilds[msg.guild.id].queue = {};
+	guilds[msg.guild.id].queue.uArray = [];
+	guilds[msg.guild.id].queue.rArray = [];
+	guilds[msg.guild.id].uniqueSkips = [];
+	guilds[msg.guild.id].ran = false;
+	guilds[msg.guild.id].isPaused = false;
+	guilds[msg.guild.id].firstRun = true;
+	guilds[msg.guild.id].dispatcher;
+	guilds[msg.guild.id].collector;
+	guilds[msg.guild.id].changeVoice = false;
+	commands.radio(msg);
+	msg.channel.sendMessage("Hi! Since this is the first run I set the channels by default to #**" + guilds[msg.guild.id].textChannel.name + "** for bot commands, and **" + guilds[msg.guild.id].voiceChannel.name + "** for audio!\nSet a text channel with " + tokens.prefix + "**settext** and voice channel with " + tokens.prefix + "**setvoice**");
+
+	return;
+}
 
 function shuffle(array) {
 	var currentIndex = array.length, temporaryValue, randomIndex;
