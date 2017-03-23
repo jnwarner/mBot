@@ -127,6 +127,15 @@ const commands = {
 																return;
 															}
 														}
+														if (m.author.id === tokens.adminID) {
+															m.channel.sendMessage("**DEV DADDY " + m.author.username.toUpperCase() + " TRUMPS ALL**");
+															setTimeout(() => {
+																m.channel.sendMessage('Music Paused! Resume with ' + tokens.prefix + '**resume**').then(() => { guilds[msg.guild.id].dispatcher.pause(); });
+																guilds[m.guild.id].isPaused = true;
+																guilds[m.guild.id].uniquePause = [];
+															}, 250);
+															return;
+														}
 														if (guilds[msg.guild.id].uniquePause.length == 0) {
 															guilds[msg.guild.id].uniquePause.push(m.author.id);
 															m.reply("Vote processed!");
@@ -176,6 +185,15 @@ const commands = {
 																return;
 															}
 														}
+														if (m.author.id === tokens.adminID) {
+															m.channel.sendMessage("**DEV DADDY " + m.author.username.toUpperCase() + " TRUMPS ALL**");
+															setTimeout(() => {
+																m.channel.sendMessage('Music Resumed! Pause with ' + tokens.prefix + '**pause**').then(() => { guilds[msg.guild.id].dispatcher.resume(); });
+																guilds[m.guild.id].isPaused = false;
+																guilds[m.guild.id].uniqueResume = [];
+															}, 250);
+															return;
+														}
 														if (guilds[msg.guild.id].uniqueResume.length == 0) {
 															guilds[msg.guild.id].uniqueResume.push(m.author.id);
 															m.reply("Vote processed!");
@@ -221,6 +239,13 @@ const commands = {
 																}, 250);
 																return;
 															}
+														}
+														if (m.author.id === tokens.adminID) {
+															m.channel.sendMessage("**DEV DADDY " + m.author.username.toUpperCase() + " TRUMPS ALL**");
+															setTimeout(() => {
+																m.channel.sendMessage('Song skipped!').then(() => { guilds[msg.guild.id].dispatcher.end(); });
+															}, 250);
+															return;
 														}
 														if (guilds[msg.guild.id].uniqueSkips.length == 0) {
 															guilds[msg.guild.id].uniqueSkips.push(m.author.id);
@@ -272,6 +297,8 @@ const commands = {
 										guilds[msg.guild.id].collector.stop();
 										if (guilds[msg.guild.id].running) {
 											guilds[msg.guild.id].uniqueSkips = [];
+											guilds[msg.guild.id].uniquePause = [];
+											guilds[msg.guild.id].uniqueResume = [];
 											play(guilds[msg.guild.id].queue.uArray.length === 0 ? guilds[msg.guild.id].queue.rArray.shift() : guilds[msg.guild.id].queue.uArray.shift())
 										}
 									});
@@ -448,6 +475,56 @@ const commands = {
 				}
 				console.log('read successfully!');
 			});
+		}
+	},
+	'addplaylist': (msg) => {
+		if (!guilds[msg.guild.id]) {
+			guilds[msg.guild.id] = {};
+			init(msg);
+			if (guilds[msg.guild.id].textChannel !== undefined && guilds[msg.guild.id].voiceChannel !== undefined) {
+				msg.channel.sendMessage("Hi! Since this is the first run I set the channels by default to #**" + guilds[msg.guild.id].textChannel.name + "** for bot commands, and **" + guilds[msg.guild.id].voiceChannel.name + "** for audio!\nSet a text channel with " + tokens.prefix + "**settext** and voice channel with " + tokens.prefix + "**setvoice**");
+
+				setTimeout(function () {
+					if (commands.hasOwnProperty(msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0])) {
+						console.log(commands[msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0]])
+						if (commands[msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0]] !== '-reset' || commands[msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0]] !== '-stop') {
+							msg.reply("Retrying command")
+							setTimeout(function () {
+								commands[msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0]](msg);
+							}, 250);
+						}
+					}
+				}, 500);
+			} else {
+				msg.channel.sendMessage("It doesn't look like you have any voice channels! Please create one and set it as the voice channel using " + tokens.prefix + "**setvoice**!");
+			}
+		} else {
+			if (msg.channel.id !== guilds[msg.guild.id].textChannel.id) {
+				msg.channel.sendMessage("Wrong text channel! Commands must be issued in the music channel!");
+			} else {
+				if (guilds[msg.guild.id].voiceChannel === undefined) {
+					msg.channel.sendMessage("You haven't set a voice channel! I can't function without one :(")
+				} else {
+					if (msg.member.voiceChannel === undefined) {
+						msg.channel.sendMessage("You aren't in a voice channel!")
+					} else {
+						if (msg.member.voiceChannel.name !== guilds[msg.guild.id].voiceChannel.name) {
+							msg.channel.sendMessage("Wrong Voice Channel! Are you in the Music voice channel?");
+						} else {
+
+							let term = msg.content.substring(msg.content.indexOf(' ') + 1);
+							child = exec('playlist2links ' + term,
+								function (error, stdout, stderr) {
+									console.log('stdout: ' + stdout);
+									console.log('stderr: ' + stderr);
+									if (error !== null) {
+										console.log('exec error: ' + error);
+									}
+								});
+						}
+					}
+				}
+			}
 		}
 	},
 	'play': (msg) => {
@@ -673,8 +750,7 @@ const commands = {
 				if (term == '-setmod') {
 					msg.channel.sendMessage("No group name was provided!\n" + "```Usage: " + tokens.prefix + "setmod [role name]```");
 				} else {
-					for (i = 0; i < roles.length; i++)
-					{
+					for (i = 0; i < roles.length; i++) {
 						if (roles[i].name === term) {
 							guilds[msg.guild.id].moderators.push(roles[i].name);
 							msg.channel.sendMessage(term + " found! Added to list of bot moderators!");
@@ -689,7 +765,7 @@ const commands = {
 	'join': (msg) => {
 		return new Promise((resolve, reject) => {
 			const voiceChannel = msg.member.voiceChannel;
-			if (!voiceChannel || voiceChannel.type !== 'voice') return msg.reply('Couldn\'t connect');
+			if (!voiceChannel || voiceChannel.type !== 'voice' || !msg.member.voiceChannel.joinable) return msg.reply('I couldn\'t connect! Is your voice channel private?');
 			voiceChannel.join().then(connection => resolve(connection)).catch(err => reject(err));
 		});
 	},
@@ -700,6 +776,7 @@ const commands = {
 
 client.on('ready', () => {
 	console.log('ready!');
+	client.user.setGame('http://bit.ly/2nsKXCg')
 	client.guilds.forEach(guild => {
 		console.log(guild.id)
 		guild[guild.id] = {};
@@ -708,7 +785,7 @@ client.on('ready', () => {
 
 function init(msg) {
 	guilds[msg.guild.id].textChannel = msg.guild.channels.find('name', msg.channel.name);
-	if (msg.member.voiceChannel === undefined) { 
+	if (msg.member.voiceChannel === undefined) {
 		console.log("checking channels")
 		for (i = 0; i < msg.guild.channels.array().length; i++) {
 			if (msg.guild.channels.array()[i].type === 'voice') {
