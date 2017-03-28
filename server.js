@@ -513,7 +513,7 @@ const commands = {
 						} else {
 
 							let term = msg.content.substring(msg.content.indexOf(' ') + 1);
-							child = exec('playlist2links ' + term,
+							child = exec('./playlist2links ' + term,
 								function (error, stdout, stderr) {
 									console.log('stdout: ' + stdout);
 									console.log('stderr: ' + stderr);
@@ -521,6 +521,41 @@ const commands = {
 										console.log('exec error: ' + error);
 									}
 								});
+
+							fs.readFile('playlist_' + term + '.txt', function (err, data) {
+								if (err) return msg.channel.sendMessage("I ran into an error!");
+								if (data != undefined) {
+
+									var lines = data.toString().split('\n');
+
+									lines = shuffle(lines);
+
+									for (i = 0; i < lines.length; i++) {
+
+										(function (i) {
+											var timer = setTimeout(function () {
+												if (guilds[msg.guild.id].running) {
+													console.log('running ' + guilds[msg.guild.id].running);
+													yt.getInfo(lines[i].toString(), (err, info) => {
+														if (err) {
+															console.log('Invalid YouTube Link: ' + err);
+														} else {
+															guilds[msg.guild.id].queue.rArray.unshift({ url: lines[i].toString(), title: info.title, requester: msg.author.username });
+															console.log(`added **${info.title}** to the queue`);
+															console.log(i);
+														}
+													});
+												} else {
+													guilds[msg.guild.id].stop = false;
+													clearTimeout(timer);
+													return;
+												}
+											}, 750 * i)
+										})(i);
+									}
+								}
+								console.log('read successfully!');
+							});
 						}
 					}
 				}
@@ -603,7 +638,7 @@ const commands = {
 
 													guilds[msg.guild.id].queue.uArray.push({ url: url_f, title: info.title, requester: msg.author.username });
 													//queue[msg.guild.id].songs.unshift({ url: url_f, title: info.title, requester: msg.author.username });
-													msg.channel.sendMessage(`**${info.title}** had been added to the queue!`);
+													msg.channel.sendMessage(`**${info.title}** has been added to the queue!`);
 												});
 											}
 											else
@@ -771,6 +806,9 @@ const commands = {
 	},
 	'reboot': (msg) => {
 		if (msg.author.id == tokens.adminID) process.exit(); //Requires a node module like Forever to work.
+	},
+	'log': (msg) => {
+		writeDB(msg);
 	}
 };
 
@@ -812,6 +850,46 @@ function init(msg) {
 	guilds[msg.guild.id].running = true;
 
 	return;
+}
+
+function writeDB(msg) {
+	let dbName = "db.json";
+	let toLog = {};
+	console.log('trying the bullshit');
+
+	for (var i = 0; i < Object.keys(guilds).length; i++) {
+		toLog[i] = {};
+		toLog[i].textChannel = {};
+		toLog[i].voiceChannel = {};
+
+		toLog[i].guildID = Object.keys(guilds)[i];
+		toLog[i].textChannel.name = guilds[Object.keys(guilds)[i]].textChannel.name;
+		toLog[i].textChannel.id = guilds[Object.keys(guilds)[i]].textChannel.id;
+		toLog[i].voiceChannel.name = guilds[Object.keys(guilds)[i]].voiceChannel.name;
+		toLog[i].voiceChannel.id = guilds[Object.keys(guilds)[i]].voiceChannel.id;
+		toLog[i].moderators = guilds[Object.keys(guilds)[i]].moderators;
+	}
+	console.log("SHIT TO LOG ======== " + JSON.stringify(toLog[i], censor(toLog[i])));
+	fs.writeFile(dbName, JSON.stringify(toLog, censor(toLog)), (err) => {
+		if (err) return err;
+		else console.log("i did it");
+	});
+}
+
+function censor(censor) {
+	var i = 0;
+
+	return function (key, value) {
+		if (i !== 0 && typeof (censor) === 'object' && typeof (value) == 'object' && censor == value)
+			return '[Circular]';
+
+		if (i >= 29) // seems to be a harded maximum of 30 serialized objects?
+			return '[Unknown]';
+
+		++i; // so we know we aren't using the original object anymore
+
+		return value;
+	}
 }
 
 function stop(msg) {
