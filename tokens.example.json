@@ -1,7 +1,0 @@
-{
-    "d_token" : "[Bot Token]",
-    "yt_token" : "[YouTube Token]",
-	"adminID" : "[Admin ID]",
-    "prefix" : "-",
-	"passes" : 1
-}

@@ -1,14 +1,16 @@
-const Discord = require('discord.js');
-const util = require('util');
+const Discord = require('discord.js')
+const util = require('util')
 const lodash = require('lodash')
+const jsonFormat = require('json-format')
+var jc = require('json-cycle')
 const exec = require('child_process').exec;
-const fs = require('fs');
+const fs = require('fs')
 function puts(error, stdout, stderr) { console.log(stdout) }
-const yt = require('ytdl-core');
-const tokens = require('./tokens.json');
-const client = new Discord.Client();
-const YouTube = require('youtube-node');
-const yt_client = new YouTube();
+const yt = require('ytdl-core')
+const tokens = require('./tokens.json')
+const client = new Discord.Client()
+const YouTube = require('youtube-node')
+const yt_client = new YouTube()
 
 yt_client.setKey(tokens.yt_token);
 
@@ -58,7 +60,7 @@ const commands = {
 
 								(function play(song, seek = 0) {
 									console.log(song);
-									if (song === undefined) return guilds[msg.guild.id].textChannel.sendMessage('Queue is empty').then(() => {
+									if (song === undefined) return msg.channel.sendMessage('Queue is empty').then(() => {
 										guilds[msg.guild.id].queue.playing = false;
 										msg.member.voiceChannel.leave();
 									});
@@ -807,17 +809,20 @@ const commands = {
 	'reboot': (msg) => {
 		if (msg.author.id == tokens.adminID) process.exit(); //Requires a node module like Forever to work.
 	},
-	'log': (msg) => {
-		writeDB(msg);
+	'log': () => {
+		writeDB();
+	},
+	'rlog': () => {
+		readDB();
 	}
 };
 
 client.on('ready', () => {
 	console.log('ready!');
-	client.user.setGame('http://bit.ly/2nsKXCg')
+	client.user.setGame('bit.ly/2nsKXCg | ' + tokens.prefix + 'help')
 	client.guilds.forEach(guild => {
 		console.log(guild.id)
-		guild[guild.id] = {};
+		readDB(guild);
 	});
 });
 
@@ -849,31 +854,72 @@ function init(msg) {
 	guilds[msg.guild.id].collector = new Discord.MessageCollector(guilds[msg.guild.id].textChannel, m => m);
 	guilds[msg.guild.id].running = true;
 
+	writeDB();
+
 	return;
 }
 
-function writeDB(msg) {
+function writeDB() {
 	let dbName = "db.json";
 	let toLog = {};
 	console.log('trying the bullshit');
-
 	for (var i = 0; i < Object.keys(guilds).length; i++) {
-		toLog[i] = {};
-		toLog[i].textChannel = {};
-		toLog[i].voiceChannel = {};
+		toLog[Object.keys(guilds)[i]] = {};
+		toLog[Object.keys(guilds)[i]].textChannel = {};
+		toLog[Object.keys(guilds)[i]].voiceChannel = {};
 
-		toLog[i].guildID = Object.keys(guilds)[i];
-		toLog[i].textChannel.name = guilds[Object.keys(guilds)[i]].textChannel.name;
-		toLog[i].textChannel.id = guilds[Object.keys(guilds)[i]].textChannel.id;
-		toLog[i].voiceChannel.name = guilds[Object.keys(guilds)[i]].voiceChannel.name;
-		toLog[i].voiceChannel.id = guilds[Object.keys(guilds)[i]].voiceChannel.id;
-		toLog[i].moderators = guilds[Object.keys(guilds)[i]].moderators;
+		toLog[Object.keys(guilds)[i]].textChannel.name = guilds[Object.keys(guilds)[i]].textChannel.name;
+		toLog[Object.keys(guilds)[i]].textChannel.id = guilds[Object.keys(guilds)[i]].textChannel.id;
+		toLog[Object.keys(guilds)[i]].voiceChannel.name = guilds[Object.keys(guilds)[i]].voiceChannel.name;
+		toLog[Object.keys(guilds)[i]].voiceChannel.id = guilds[Object.keys(guilds)[i]].voiceChannel.id;
+		toLog[Object.keys(guilds)[i]].moderators = guilds[Object.keys(guilds)[i]].moderators;
 	}
-	console.log("SHIT TO LOG ======== " + JSON.stringify(toLog[i], censor(toLog[i])));
-	fs.writeFile(dbName, JSON.stringify(toLog, censor(toLog)), (err) => {
-		if (err) return err;
+
+	fs.writeFile(dbName, jsonFormat(toLog), (err) => {
+		if (err) console.log("OH SHIT NO");
 		else console.log("i did it");
-	});
+	})
+}
+
+function readDB(guild) {
+	let guildChannels = guild.channels;
+	let dbName = "db.json";
+	let obj = {};
+	fs.readFile(dbName, 'utf-8', (err, data) => {
+		if (err) return;
+		else {
+			if (data !== undefined && data !== '') {
+				console.log("parsing")
+				obj = JSON.parse(data);
+				for (i = 0; i < Object.keys(obj).length; i++) {
+					if (Object.keys(obj)[i] === guild.id) {
+						guildChannels.find('id', obj[Object.keys(obj)[i]].textChannel.id)
+						
+					}
+					// guilds[Object.keys(obj)[i]].textChannel = {};
+					// guilds[Object.keys(obj)[i]].voiceChannel = {};
+
+					// guilds[Object.keys(obj)[i]].textChannel.name = obj[Object.keys(obj)[i]].textChannel.name;
+					// guilds[Object.keys(obj)[i]].textChannel.id = obj[Object.keys(obj)[i]].textChannel.id;
+
+					// guilds[Object.keys(obj)[i]].voiceChannel.name = obj[Object.keys(obj)[i]].voiceChannel.name;
+					// guilds[Object.keys(obj)[i]].voiceChannel.id = obj[Object.keys(obj)[i]].voiceChannel.id;
+					// guilds[Object.keys(obj)[i]].moderators = obj[Object.keys(obj)[i]].moderators;
+
+					// guilds[Object.keys(obj)[i]].queue = {};
+					// guilds[Object.keys(obj)[i]].queue.uArray = [];
+					// guilds[Object.keys(obj)[i]].queue.rArray = [];
+					// guilds[Object.keys(obj)[i]].uniqueSkips = [];
+					// guilds[Object.keys(obj)[i]].uniquePause = [];
+					// guilds[Object.keys(obj)[i]].uniqueResume = [];
+					// guilds[Object.keys(obj)[i]].ran = false;
+					// guilds[Object.keys(obj)[i]].isPaused = false;
+					// guilds[Object.keys(obj)[i]].firstRun = true;
+					// guilds[Object.keys(obj)[i]].running = false;
+				}
+			} else console.log("nothing to parse")
+		}
+	})
 }
 
 function censor(censor) {
