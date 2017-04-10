@@ -2,7 +2,6 @@ const Discord = require('discord.js')
 const util = require('util')
 const lodash = require('lodash')
 const jsonFormat = require('json-format')
-var jc = require('json-cycle')
 const exec = require('child_process').exec;
 const fs = require('fs')
 function puts(error, stdout, stderr) { console.log(stdout) }
@@ -11,6 +10,7 @@ const tokens = require('./tokens.json')
 const client = new Discord.Client()
 const YouTube = require('youtube-node')
 const yt_client = new YouTube()
+const request = require('request')
 
 yt_client.setKey(tokens.yt_token);
 
@@ -515,49 +515,79 @@ const commands = {
 						} else {
 
 							let term = msg.content.substring(msg.content.indexOf(' ') + 1);
-							child = exec('./playlist2links ' + term,
-								function (error, stdout, stderr) {
-									console.log('stdout: ' + stdout);
-									console.log('stderr: ' + stderr);
-									if (error !== null) {
-										console.log('exec error: ' + error);
-									}
-								});
 
-							fs.readFile('playlist_' + term + '.txt', function (err, data) {
-								if (err) return msg.channel.sendMessage("I ran into an error!");
-								if (data != undefined) {
+							request(('https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=' + term + '&key=' + tokens.yt_token), (error, response, body) => {
+								console.log(error)
+								console.log(response.statusCode)
+								if (response.statusCode === 404) return msg.channel.sendMessage("Couldn't find a playlist with that ID!")
+								//console.log('response: ' + response && response.statusCode)
+								//console.log('body: ' + body)
+								msg.channel.sendMessage("Got it!")
+								let doc = JSON.parse(body)
+								for (i = 0; i < Object.keys(doc.items).length; i++) {
+									(function (i) {
+										var tmr = setTimeout(function () {
+											console.log(i)
+											console.log(doc.items[i].snippet.resourceId.videoId)
 
-									var lines = data.toString().split('\n');
-
-									lines = shuffle(lines);
-
-									for (i = 0; i < lines.length; i++) {
-
-										(function (i) {
-											var timer = setTimeout(function () {
-												if (guilds[msg.guild.id].running) {
-													console.log('running ' + guilds[msg.guild.id].running);
-													yt.getInfo(lines[i].toString(), (err, info) => {
-														if (err) {
-															console.log('Invalid YouTube Link: ' + err);
-														} else {
-															guilds[msg.guild.id].queue.rArray.unshift({ url: lines[i].toString(), title: info.title, requester: msg.author.username });
-															console.log(`added **${info.title}** to the queue`);
-															console.log(i);
-														}
-													});
-												} else {
-													guilds[msg.guild.id].stop = false;
-													clearTimeout(timer);
-													return;
-												}
-											}, 750 * i)
-										})(i);
-									}
+											yt.getInfo(('https://youtu.be/' + doc.items[i].snippet.resourceId.videoId), (err, info) => {
+												if (err) return msg.channel.sendMessage('Invalid YouTube Link: ' + err);
+												if (info.livestream === '1') return msg.channel.sendMessage('This is a livestream!');
+												// console.log(info);
+												//if (!guilds[msg.guild.id].queue.hasOwnProperty(msg.guild.id)) queue[msg.guild.id] = {}, queue[msg.guild.id].playing = false, queue[msg.guild.id].songs = [], queue[msg.guild.id].rArray = [], queue[msg.guild.id].uArray = [];
+												guilds[msg.guild.id].queue.rArray.unshift({ url: ('https://youtu.be/' + doc.items[i].snippet.resourceId.videoId), title: info.title, requester: msg.author.username });
+												//queue[msg.guild.id].songs.unshift({ url: term, title: info.title, requester: msg.author.username });
+												//msg.channel.sendMessage(`**${info.title}** has been added to the queue!`);
+											});
+										}, 750 * i)
+									})(i);
 								}
-								console.log('read successfully!');
-							});
+							})
+							//	shit that only worked on linux, trying get requests
+
+							// child = exec('./playlist2links ' + term,
+							// 	function (error, stdout, stderr) {
+							// 		console.log('stdout: ' + stdout);
+							// 		console.log('stderr: ' + stderr);
+							// 		if (error !== null) {
+							// 			console.log('exec error: ' + error);
+							// 		}
+							// 	});
+
+							// fs.readFile('playlist_' + term + '.txt', function (err, data) {
+							// 	if (err) return msg.channel.sendMessage("I ran into an error!");
+							// 	if (data != undefined) {
+
+							// 		var lines = data.toString().split('\n');
+
+							// 		lines = shuffle(lines);
+
+							// 		for (i = 0; i < lines.length; i++) {
+
+							// 			(function (i) {
+							// 				var timer = setTimeout(function () {
+							// 					if (guilds[msg.guild.id].running) {
+							// 						console.log('running ' + guilds[msg.guild.id].running);
+							// 						yt.getInfo(lines[i].toString(), (err, info) => {
+							// 							if (err) {
+							// 								console.log('Invalid YouTube Link: ' + err);
+							// 							} else {
+							// 								guilds[msg.guild.id].queue.rArray.unshift({ url: lines[i].toString(), title: info.title, requester: msg.author.username });
+							// 								console.log(`added **${info.title}** to the queue`);
+							// 								console.log(i);
+							// 							}
+							// 						});
+							// 					} else {
+							// 						guilds[msg.guild.id].stop = false;
+							// 						clearTimeout(timer);
+							// 						return;
+							// 					}
+							// 				}, 750 * i)
+							// 			})(i);
+							// 		}
+							// 	}
+							//console.log('read successfully!');
+							//});
 						}
 					}
 				}
@@ -822,7 +852,7 @@ client.on('ready', () => {
 	client.user.setGame('bit.ly/2nsKXCg | ' + tokens.prefix + 'help')
 	client.guilds.forEach(guild => {
 		console.log(guild.id)
-		readDB(guild);
+		//readDB(guild);
 	});
 });
 
@@ -894,7 +924,7 @@ function readDB(guild) {
 				for (i = 0; i < Object.keys(obj).length; i++) {
 					if (Object.keys(obj)[i] === guild.id) {
 						guildChannels.find('id', obj[Object.keys(obj)[i]].textChannel.id)
-						
+
 					}
 					// guilds[Object.keys(obj)[i]].textChannel = {};
 					// guilds[Object.keys(obj)[i]].voiceChannel = {};

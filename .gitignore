@@ -39,3 +39,5 @@ Thumbs.db
 tokens.json
 
 node_modules
+
+db.json
