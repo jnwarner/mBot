@@ -516,78 +516,36 @@ const commands = {
 
 							let term = msg.content.substring(msg.content.indexOf(' ') + 1);
 
-							request(('https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=' + term + '&key=' + tokens.yt_token), (error, response, body) => {
-								console.log(error)
-								console.log(response.statusCode)
-								if (response.statusCode === 404) return msg.channel.sendMessage("Couldn't find a playlist with that ID!")
-								//console.log('response: ' + response && response.statusCode)
-								//console.log('body: ' + body)
+							var playlist = []
+
+							getPlist(term, null, playlist)
+
+							setTimeout(() => {
+								console.log(playlist)
+								if (Object.keys(playlist).length === 0) return msg.channel.sendMessage("Invalid playlist id!")
 								msg.channel.sendMessage("Got it!")
-								let doc = JSON.parse(body)
-								for (i = 0; i < Object.keys(doc.items).length; i++) {
+								for (i = 0; i < Object.keys(playlist).length; i++) {
 									(function (i) {
 										var tmr = setTimeout(function () {
 											console.log(i)
-											console.log(doc.items[i].snippet.resourceId.videoId)
+											if (playlist[i] !== undefined) {
+												console.log(playlist[i].snippet.resourceId.videoId)
 
-											yt.getInfo(('https://youtu.be/' + doc.items[i].snippet.resourceId.videoId), (err, info) => {
-												if (err) return msg.channel.sendMessage('Invalid YouTube Link: ' + err);
-												if (info.livestream === '1') return msg.channel.sendMessage('This is a livestream!');
-												// console.log(info);
-												//if (!guilds[msg.guild.id].queue.hasOwnProperty(msg.guild.id)) queue[msg.guild.id] = {}, queue[msg.guild.id].playing = false, queue[msg.guild.id].songs = [], queue[msg.guild.id].rArray = [], queue[msg.guild.id].uArray = [];
-												guilds[msg.guild.id].queue.rArray.unshift({ url: ('https://youtu.be/' + doc.items[i].snippet.resourceId.videoId), title: info.title, requester: msg.author.username });
-												//queue[msg.guild.id].songs.unshift({ url: term, title: info.title, requester: msg.author.username });
-												//msg.channel.sendMessage(`**${info.title}** has been added to the queue!`);
-											});
+												yt.getInfo(('https://youtu.be/' + playlist[i].snippet.resourceId.videoId), (err, info) => {
+													if (err) return msg.channel.sendMessage('Invalid YouTube Link: ' + err);
+													if (info.livestream === '1') return msg.channel.sendMessage('This is a livestream!');
+													// console.log(info);
+													//if (!guilds[msg.guild.id].queue.hasOwnProperty(msg.guild.id)) queue[msg.guild.id] = {}, queue[msg.guild.id].playing = false, queue[msg.guild.id].songs = [], queue[msg.guild.id].rArray = [], queue[msg.guild.id].uArray = [];
+													guilds[msg.guild.id].queue.rArray.unshift({ url: ('https://youtu.be/' + playlist[i].snippet.resourceId.videoId), title: info.title, requester: msg.author.username });
+													//queue[msg.guild.id].songs.unshift({ url: term, title: info.title, requester: msg.author.username });
+													//msg.channel.sendMessage(`**${info.title}** has been added to the queue!`);
+												});
+											}
 										}, 750 * i)
 									})(i);
 								}
-							})
-							//	shit that only worked on linux, trying get requests
 
-							// child = exec('./playlist2links ' + term,
-							// 	function (error, stdout, stderr) {
-							// 		console.log('stdout: ' + stdout);
-							// 		console.log('stderr: ' + stderr);
-							// 		if (error !== null) {
-							// 			console.log('exec error: ' + error);
-							// 		}
-							// 	});
-
-							// fs.readFile('playlist_' + term + '.txt', function (err, data) {
-							// 	if (err) return msg.channel.sendMessage("I ran into an error!");
-							// 	if (data != undefined) {
-
-							// 		var lines = data.toString().split('\n');
-
-							// 		lines = shuffle(lines);
-
-							// 		for (i = 0; i < lines.length; i++) {
-
-							// 			(function (i) {
-							// 				var timer = setTimeout(function () {
-							// 					if (guilds[msg.guild.id].running) {
-							// 						console.log('running ' + guilds[msg.guild.id].running);
-							// 						yt.getInfo(lines[i].toString(), (err, info) => {
-							// 							if (err) {
-							// 								console.log('Invalid YouTube Link: ' + err);
-							// 							} else {
-							// 								guilds[msg.guild.id].queue.rArray.unshift({ url: lines[i].toString(), title: info.title, requester: msg.author.username });
-							// 								console.log(`added **${info.title}** to the queue`);
-							// 								console.log(i);
-							// 							}
-							// 						});
-							// 					} else {
-							// 						guilds[msg.guild.id].stop = false;
-							// 						clearTimeout(timer);
-							// 						return;
-							// 					}
-							// 				}, 750 * i)
-							// 			})(i);
-							// 		}
-							// 	}
-							//console.log('read successfully!');
-							//});
+							}, 5000);
 						}
 					}
 				}
@@ -965,6 +923,44 @@ function censor(censor) {
 		++i; // so we know we aren't using the original object anymore
 
 		return value;
+	}
+}
+
+function getPlist(plistId, pageToken = null, plist) {
+	if (pageToken === null) {
+		request(('https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=' + plistId + '&key=' + tokens.yt_token), (error, response, body) => {
+			if (response.statusCode === 404) {
+				plist = null
+				return plist
+			}
+			let ptemp = JSON.parse(body)
+			console.log(Object.keys(ptemp.items).length)
+			for (i = 0; i < Object.keys(ptemp.items).length; i++) {
+				plist[i] = ptemp.items[i]
+			}
+			if (ptemp.nextPageToken !== undefined) {
+				console.log(ptemp.nextPageToken)
+				getPlist(plistId, ptemp.nextPageToken, plist)
+			} else {
+				console.log('END OF PLIST')
+				return plist
+			}
+		})
+	} else {
+		request(('https://www.googleapis.com/youtube/v3/playlistItems?pageToken=' + pageToken + '&part=snippet&maxResults=50&playlistId=' + plistId + '&key=' + tokens.yt_token), (error, response, body) => {
+			let ptemp = JSON.parse(body)
+			console.log(Object.keys(ptemp.items).length)
+			for (i = 0; i < Object.keys(ptemp.items).length; i++) {
+				plist[i + (Object.keys(plist).length - 1)] = ptemp.items[i]
+			}
+			if (ptemp.nextPageToken !== undefined) {
+				console.log(ptemp.nextPageToken)
+				getPlist(plistId, ptemp.nextPageToken, plist)
+			} else {
+				console.log('END OF PLIST')
+				return plist
+			}
+		})
 	}
 }
 
