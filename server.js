@@ -521,7 +521,7 @@ const commands = {
 							getPlist(term, null, playlist)
 
 							setTimeout(() => {
-								console.log(playlist)
+								//console.log(playlist)
 								if (Object.keys(playlist).length === 0) return msg.channel.sendMessage("Invalid playlist id!")
 								msg.channel.sendMessage("Got it!")
 								for (i = 0; i < Object.keys(playlist).length; i++) {
@@ -540,6 +540,8 @@ const commands = {
 													//queue[msg.guild.id].songs.unshift({ url: term, title: info.title, requester: msg.author.username });
 													//msg.channel.sendMessage(`**${info.title}** has been added to the queue!`);
 												});
+											} else {
+												console.log(playlist[i])
 											}
 										}, 750 * i)
 									})(i);
@@ -949,9 +951,12 @@ function getPlist(plistId, pageToken = null, plist) {
 	} else {
 		request(('https://www.googleapis.com/youtube/v3/playlistItems?pageToken=' + pageToken + '&part=snippet&maxResults=50&playlistId=' + plistId + '&key=' + tokens.yt_token), (error, response, body) => {
 			let ptemp = JSON.parse(body)
+			let plength = Object.keys(plist).length
 			console.log(Object.keys(ptemp.items).length)
 			for (i = 0; i < Object.keys(ptemp.items).length; i++) {
-				plist[i + (Object.keys(plist).length - 1)] = ptemp.items[i]
+				let index = i + plength - 1
+				console.log(index)
+				plist[index] = ptemp.items[i]
 			}
 			if (ptemp.nextPageToken !== undefined) {
 				console.log(ptemp.nextPageToken)
