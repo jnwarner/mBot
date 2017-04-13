@@ -387,23 +387,24 @@ const commands = {
 			} else {
 				let tosend = ['```diff',
 					'!=================  [MUSIC BOT COMMANDS] =================!'.toUpperCase(),
-					tokens.prefix + 'play     : Adds a youtube link or performs a search query (must be in music channel).',
-					tokens.prefix + 'start    : Starts the music queue. (must be in music channel)',
+					tokens.prefix + 'play         : Adds a youtube link or performs a search query (must be in music channel).',
+					tokens.prefix + 'addplaylist  : Adds a youtube playlist to the queue (must be playlist ID)',
+					tokens.prefix + 'start        : Starts the music queue. (must be in music channel)',
 					'',
 					'!== [the following commands don\'t need a voice channel] ==!'.toUpperCase(),
-					tokens.prefix + 'help     : Displays available commands.',
-					tokens.prefix + 'queue    : Shows the current queue, the next 15 songs are shown.',
+					tokens.prefix + 'help         : Displays available commands.',
+					tokens.prefix + 'queue        : Shows the current queue, the next 15 songs are shown.',
 					'',
 					'!================  [Owner/Admin Commands] ================!'.toUpperCase(),
-					tokens.prefix + 'setvoice : Sets the bot\'s voice channel.',
-					tokens.prefix + 'settext  : Sets the bot\'s text channel.',
-					tokens.prefix + 'setmod   : Adds role name to list of trusted roles.',
+					tokens.prefix + 'setvoice     : Sets the bot\'s voice channel.',
+					tokens.prefix + 'settext      : Sets the bot\'s text channel.',
+					tokens.prefix + 'setmod       : Adds role name to list of trusted roles.',
 					'',
 					'!== [the following commands are used while music plays] ==!'.toUpperCase(),
-					tokens.prefix + 'pause    : Pauses the music. (requires majority vote)',
-					tokens.prefix + 'resume   : Resumes the music. (requires majority vote)',
-					tokens.prefix + 'skip     : Skips the playing song. (requires majority vote)',
-					tokens.prefix + 'time     : Shows the playtime of the song.',
+					tokens.prefix + 'pause        : Pauses the music. (requires majority vote)',
+					tokens.prefix + 'resume       : Resumes the music. (requires majority vote)',
+					tokens.prefix + 'skip         : Skips the playing song. (requires majority vote)',
+					tokens.prefix + 'time         : Shows the playtime of the song.',
 					'!=========================================================!',
 					'```'];
 				msg.channel.sendMessage(tosend.join('\n'));
@@ -513,7 +514,6 @@ const commands = {
 						if (msg.member.voiceChannel.name !== guilds[msg.guild.id].voiceChannel.name) {
 							msg.channel.sendMessage("Wrong Voice Channel! Are you in the Music voice channel?");
 						} else {
-
 							let term = msg.content.substring(msg.content.indexOf(' ') + 1);
 
 							msg.channel.sendMessage("Attempting to get playlist content!")
