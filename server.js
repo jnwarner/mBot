@@ -516,15 +516,15 @@ const commands = {
 
 							let term = msg.content.substring(msg.content.indexOf(' ') + 1);
 
+							msg.channel.sendMessage("Attempting to get playlist content!")
 							var playlist = []
+							var listInfo
 
-							getPlist(term, null, playlist)
-
-							setTimeout(() => {
+							getPlist(term, null, playlist, function (playlist) {
 								//console.log(playlist)
-								if (Object.keys(playlist).length === 0) return msg.channel.sendMessage("Invalid playlist id!")
-								msg.channel.sendMessage("Got it!")
-								for (i = 0; i < Object.keys(playlist).length; i++) {
+								if (playlist === null) return msg.channel.sendMessage("Invalid playlist id!")
+								msg.channel.sendMessage("Got it! Adding **" + Object.keys(playlist).length + "** videos from **" + playlist[0].snippet.channelTitle + "**'s playlist!")
+								for (i = (Object.keys(playlist).length - 1); i >= 0; i--) {
 									(function (i) {
 										var tmr = setTimeout(function () {
 											console.log(i)
@@ -532,13 +532,16 @@ const commands = {
 												console.log(playlist[i].snippet.resourceId.videoId)
 
 												yt.getInfo(('https://youtu.be/' + playlist[i].snippet.resourceId.videoId), (err, info) => {
-													if (err) return msg.channel.sendMessage('Invalid YouTube Link: ' + err);
-													if (info.livestream === '1') return msg.channel.sendMessage('This is a livestream!');
-													// console.log(info);
-													//if (!guilds[msg.guild.id].queue.hasOwnProperty(msg.guild.id)) queue[msg.guild.id] = {}, queue[msg.guild.id].playing = false, queue[msg.guild.id].songs = [], queue[msg.guild.id].rArray = [], queue[msg.guild.id].uArray = [];
-													guilds[msg.guild.id].queue.rArray.unshift({ url: ('https://youtu.be/' + playlist[i].snippet.resourceId.videoId), title: info.title, requester: msg.author.username });
-													//queue[msg.guild.id].songs.unshift({ url: term, title: info.title, requester: msg.author.username });
-													//msg.channel.sendMessage(`**${info.title}** has been added to the queue!`);
+													if (err) console.log('Invalid YouTube Link: ' + err);
+													else {
+														if (info.livestream === '1') return msg.channel.sendMessage('This is a livestream!');
+														// console.log(info);
+														//if (!guilds[msg.guild.id].queue.hasOwnProperty(msg.guild.id)) queue[msg.guild.id] = {}, queue[msg.guild.id].playing = false, queue[msg.guild.id].songs = [], queue[msg.guild.id].rArray = [], queue[msg.guild.id].uArray = [];
+														//console.log("Adding " + info.title + " to the queue")
+														guilds[msg.guild.id].queue.rArray.unshift({ url: ('https://youtu.be/' + playlist[i].snippet.resourceId.videoId), title: info.title, requester: msg.author.username });
+														//queue[msg.guild.id].songs.unshift({ url: term, title: info.title, requester: msg.author.username });
+														//msg.channel.sendMessage(`**${info.title}** has been added to the queue!`);
+													}
 												});
 											} else {
 												console.log(playlist[i])
@@ -546,8 +549,7 @@ const commands = {
 										}, 750 * i)
 									})(i);
 								}
-
-							}, 5000);
+							})
 						}
 					}
 				}
@@ -928,12 +930,12 @@ function censor(censor) {
 	}
 }
 
-function getPlist(plistId, pageToken = null, plist) {
+function getPlist(plistId, pageToken = null, plist, callback) {
 	if (pageToken === null) {
 		request(('https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=' + plistId + '&key=' + tokens.yt_token), (error, response, body) => {
 			if (response.statusCode === 404) {
 				plist = null
-				return plist
+				return callback(plist)
 			}
 			let ptemp = JSON.parse(body)
 			console.log(Object.keys(ptemp.items).length)
@@ -942,10 +944,11 @@ function getPlist(plistId, pageToken = null, plist) {
 			}
 			if (ptemp.nextPageToken !== undefined) {
 				console.log(ptemp.nextPageToken)
-				getPlist(plistId, ptemp.nextPageToken, plist)
+				getPlist(plistId, ptemp.nextPageToken, plist, callback)
 			} else {
 				console.log('END OF PLIST')
-				return plist
+				console.log(typeof (callback))
+				return callback(plist)
 			}
 		})
 	} else {
@@ -955,15 +958,15 @@ function getPlist(plistId, pageToken = null, plist) {
 			console.log(Object.keys(ptemp.items).length)
 			for (i = 0; i < Object.keys(ptemp.items).length; i++) {
 				let index = i + plength - 1
-				console.log(index)
 				plist[index] = ptemp.items[i]
 			}
 			if (ptemp.nextPageToken !== undefined) {
 				console.log(ptemp.nextPageToken)
-				getPlist(plistId, ptemp.nextPageToken, plist)
+				getPlist(plistId, ptemp.nextPageToken, plist, callback)
 			} else {
 				console.log('END OF PLIST')
-				return plist
+				console.log(typeof (callback))
+				return callback(plist)
 			}
 		})
 	}
