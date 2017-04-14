@@ -523,6 +523,7 @@ const commands = {
 							getPlist(term, null, playlist, function (playlist) {
 								//console.log(playlist)
 								if (playlist === null) return msg.channel.sendMessage("Invalid playlist id!")
+								playlist = shuffle(playlist)
 								msg.channel.sendMessage("Got it! Adding **" + Object.keys(playlist).length + "** videos from **" + playlist[0].snippet.channelTitle + "**'s playlist!")
 								for (i = (Object.keys(playlist).length - 1); i >= 0; i--) {
 									(function (i) {
