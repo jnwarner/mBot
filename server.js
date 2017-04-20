@@ -1,6 +1,5 @@
 const Discord = require('discord.js')
 const util = require('util')
-const lodash = require('lodash')
 const jsonFormat = require('json-format')
 const exec = require('child_process').exec;
 const fs = require('fs')
@@ -66,7 +65,7 @@ const commands = {
 									});
 									guilds[msg.guild.id].textChannel.sendMessage(`Playing: **${song.title}** as requested by: **${song.requester}**`);
 
-									guilds[msg.guild.id].dispatcher = msg.guild.voiceConnection.playStream(yt(song.url, { audioonly: true, quality: 18 }), { passes: tokens.passes, seek: seek });
+									guilds[msg.guild.id].dispatcher = msg.guild.voiceConnection.playStream(yt(song.url, { audioonly: true }), { passes: tokens.passes, seek: seek });
 									guilds[msg.guild.id].running = true;
 									console.log(guilds[msg.guild.id].firstRun);
 									if (guilds[msg.guild.id].firstRun) {
@@ -84,7 +83,7 @@ const commands = {
 									guilds[msg.guild.id].collector.on('message', m => {
 										setInterval(function () {
 											var voiceChannel = guilds[msg.guild.id].voiceChannel;
-											if (guilds[m.guild.id].running) {
+											if (guilds[msg.guild.id].running) {
 												members = voiceChannel.members.array().length;
 												//console.log('members: ' + members);
 												if (guilds[msg.guild.id].collector.channel !== guilds[msg.guild.id].textChannel) {
@@ -100,12 +99,21 @@ const commands = {
 													}
 												} if (guilds[msg.guild.id].clientUser === undefined) {
 													commands.join(guilds[msg.guild.id].voiceChannel)
+												} if (guilds[msg.guild.id].dispatcher === undefined) {
+													var lastMessageID = guilds[msg.guild.id].textChannel.lastMessageID
+													console.log(lastMessageID)
+													guilds[msg.guild.id].textChannel.fetchMessage(lastMessageID).then(msg => {
+														commands.join(guilds[msg.guild.id].voiceChannel)
+														setTimeout(() => {
+															commands.start(msg)
+														}, 1000)
+													})
 												}
-												if (!guilds[m.guild.id].isPaused) {
+												if (!guilds[msg.guild.id].isPaused) {
 													if (members < 2) {
-														guilds[m.guild.id].dispatcher.pause();
+														guilds[msg.guild.id].dispatcher.pause();
 													} else {
-														guilds[m.guild.id].dispatcher.resume();
+														guilds[msg.guild.id].dispatcher.resume();
 													}
 												}
 											}
@@ -418,6 +426,7 @@ const commands = {
 					tokens.prefix + 'settext   : Sets the bot\'s text channel.',
 					tokens.prefix + 'addmod    : Adds role name to list of trusted roles.',
 					tokens.prefix + 'removemod : Removes role name from list of trusted roles.',
+					tokens.prefix + 'listmod   : Displays currently added roles.',
 					'',
 					'!=================  [Moderator Commands] =================!'.toUpperCase(),
 					tokens.prefix + 'remove    : Removes song from queue.',
@@ -1134,7 +1143,6 @@ function readDB(guild) {
 						guilds[guild.id].ran = false;
 						guilds[guild.id].isPaused = false;
 						guilds[guild.id].firstRun = true;
-						guilds[guild.id].dispatcher;
 						guilds[guild.id].running = true;
 						guilds[guild.id].collector = new Discord.MessageCollector(guilds[guild.id].textChannel, m => m);
 
@@ -1147,7 +1155,7 @@ function readDB(guild) {
 								commands.join(guilds[guild.id].voiceChannel)
 								setTimeout(() => {
 									commands.start(msg)
-								}, 500)
+								}, 1000)
 							})
 						}, 3000)
 					}
@@ -1269,4 +1277,4 @@ client.on('message', msg => {
 	if (commands.hasOwnProperty(msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0])) commands[msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0]](msg);
 });
 
-client.login(tokens.d_token);
+client.login(tokens.b_token);
