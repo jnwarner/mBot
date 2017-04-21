@@ -442,7 +442,6 @@ const commands = {
 					tokens.prefix + 'removemod [role name]',
 					tokens.prefix + 'remove    [index of song]',
 					tokens.prefix + 'bump      [index of song]',
-					'',
 					'!=========================================================!',
 					'```'];
 
@@ -728,7 +727,7 @@ const commands = {
 								if ((term.charAt(0) == 'w' && term.charAt(1) == 'w' && term.charAt(2) == 'w' && term.charAt(3) == '.') || (term.charAt(0) == 'h' && term.charAt(1) == 't' && term.charAt(2) == 't' && term.charAt(3) == 'p' && (term.charAt(4) == ':' || (term.charAt(4) == 's' && term.charAt(5) == ':')))) {
 									if (term.toString() !== null) {
 										yt.getInfo(term.toString(), (err, info) => {
-											if (err) return msg.channel.sendMessage('Invalid YouTube Link: ' + err);
+											if (err) return msg.channel.sendMessage(err);
 											if (info.livestream === '1') return msg.channel.sendMessage('This is a livestream!');
 											console.log(info);
 											//if (!guilds[msg.guild.id].queue.hasOwnProperty(msg.guild.id)) queue[msg.guild.id] = {}, queue[msg.guild.id].playing = false, queue[msg.guild.id].songs = [], queue[msg.guild.id].rArray = [], queue[msg.guild.id].uArray = [];
@@ -1443,4 +1442,4 @@ client.on('message', msg => {
 	if (commands.hasOwnProperty(msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0])) commands[msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0]](msg);
 });
 
-client.login(tokens.t_token);
+client.login(tokens.b_token);
