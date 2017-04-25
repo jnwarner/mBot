@@ -38,6 +38,7 @@ const commands = {
 				msg.channel.sendMessage("It doesn't look like you have any voice channels! Please create one and set it as the voice channel using " + tokens.prefix + "**setvoice**!");
 			}
 		} else {
+			console.log(msg.member.voiceChannel)
 			if (msg.channel.id !== guilds[msg.guild.id].textChannel.id) {
 				msg.channel.sendMessage("Wrong text channel! Commands must be issued in #**" + guilds[msg.guild.id].textChannel.name + "**!");
 			} else {
@@ -59,15 +60,15 @@ const commands = {
 
 								(function play(song, seek = 0) {
 									console.log(song);
-									if (song === undefined) return msg.channel.sendMessage('Queue is empty').then(() => {
-										guilds[msg.guild.id].queue.playing = false;
-										msg.member.voiceChannel.leave();
+									if (song === undefined) return msg.channel.sendMessage('Queue is empty at the moment, retrying').then(() => {
+										guilds[msg.guild.id].queue.playing = false
+										//commands.start(msg)
 									});
 									guilds[msg.guild.id].textChannel.sendMessage(`Playing: **${song.title}** as requested by: **${song.requester}**`);
 
 									guilds[msg.guild.id].dispatcher = msg.guild.voiceConnection.playStream(yt(song.url, { audioonly: true }), { passes: tokens.passes, seek: seek });
 									guilds[msg.guild.id].running = true;
-									console.log(guilds[msg.guild.id].firstRun);
+									//console.log(guilds[msg.guild.id].firstRun);
 									if (guilds[msg.guild.id].firstRun) {
 										guilds[msg.guild.id].queue.uArray.length === 0 ? guilds[msg.guild.id].queue.rArray.shift() : guilds[msg.guild.id].queue.uArray.shift();
 										guilds[msg.guild.id].firstRun = false;
@@ -79,7 +80,7 @@ const commands = {
 
 									let members = voiceChannel.members.array().length;
 
-									if (guilds[msg.guild.id].running) {
+									if (guilds[msg.guild.id].queue.playing) {
 										guilds[msg.guild.id].collector.on('message', m => {
 											setInterval(function () {
 												var voiceChannel = guilds[msg.guild.id].voiceChannel;
@@ -99,6 +100,7 @@ const commands = {
 													} if (guilds[msg.guild.id].clientUser === undefined) {
 														commands.join(guilds[msg.guild.id].voiceChannel)
 													}
+													console.log(typeof (guilds[msg.guild.id].dispatcher))
 													if (guilds[msg.guild.id].dispatcher === undefined) {
 														var lastMessageID = guilds[msg.guild.id].textChannel.lastMessageID
 														console.log(lastMessageID)
@@ -111,9 +113,9 @@ const commands = {
 													}
 													if (!guilds[msg.guild.id].isPaused) {
 														if (members < 2) {
-															guilds[msg.guild.id].dispatcher.pause();
+															guilds[msg.guild.id].dispatcher.pause()
 														} else {
-															guilds[msg.guild.id].dispatcher.resume();
+															guilds[msg.guild.id].dispatcher.resume()
 														}
 													}
 												}
@@ -317,7 +319,7 @@ const commands = {
 									});
 									guilds[msg.guild.id].dispatcher.on('error', (err) => {
 										console.log('THERE WAS AN ERROR DAD PLS');
-										return guilds[msg.guild.id].textChannel.sendMessage('ERROR: ' + err).then(() => {
+										return console.log('ERROR: ' + err).then(() => {
 											guilds[msg.guild.id].collector.stop();
 											play(guilds[msg.guild.id].queue.uArray.length === 0 ? guilds[msg.guild.id].queue.rArray.shift() : guilds[msg.guild.id].queue.uArray.shift());
 										});
@@ -758,8 +760,8 @@ const commands = {
 
 													guilds[msg.guild.id].queue.uArray.push({ url: url_f, title: info.title, requester: msg.author.username });
 													//queue[msg.guild.id].songs.unshift({ url: url_f, title: info.title, requester: msg.author.username });
-													msg.channel.sendMessage(`**${info.title}** has been added to the queue!`);
-												});
+													msg.channel.sendMessage(`**${info.title}** has been added to the queue!`)
+												})
 											}
 											else
 												msg.channel.sendMessage("I couldn\'t find a video with that name!");
@@ -1206,11 +1208,11 @@ const commands = {
 };
 
 client.on('ready', () => {
-	console.log('ready!');
-	client.user.setGame('bit.ly/2nsKXCg | ' + tokens.prefix + 'help')
+	console.log('Logged In! Listing Guilds');
+	client.user.setGame(tokens.prefix + 'help')
 	client.guilds.forEach(guild => {
 		setTimeout(() => {
-			console.log(guild.id)
+			console.log(guild.name + ": Owned by " + guild.owner.nickname)
 			readDB(guild);
 		}, 250)
 	});
@@ -1438,8 +1440,29 @@ String.prototype.toHHMMSS = function () {
 }
 
 client.on('message', msg => {
+	console.log(msg)
 	if (!msg.content.startsWith(tokens.prefix)) return;
 	if (commands.hasOwnProperty(msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0])) commands[msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0]](msg);
 });
 
-client.login(tokens.b_token);
+client.login(tokens.t_token)
+
+process.on('uncaughtException', (err) => {
+	if (err.code == 'ECONNRESET') {
+		// Yes, I'm aware this is really bad node code. However, the uncaught exception
+		// that causes this error is buried deep inside either discord.js, ytdl or node
+		// itself and after countless hours of trying to debug this issue I have simply
+		// given up. The fact that this error only happens *sometimes* while attempting
+		// to skip to the next video (at other times, I used to get an EPIPE, which was
+		// clearly an error in discord.js and was now fixed) tells me that this problem
+		// can actually be safely prevented using uncaughtException. Should this bother
+		// you, you can always try to debug the error yourself and make a PR.
+		console.log('Got an ECONNRESET! This is *probably* not an error. Stacktrace:')
+		console.log(err.stack)
+	} else {
+		// Normal error handling
+		console.log(err)
+		console.log(err.stack)
+		process.exit(0)
+	}
+})
