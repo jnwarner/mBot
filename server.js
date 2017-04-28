@@ -1539,6 +1539,7 @@ function readDB(guild) {
 						guilds[guild.id].isPaused = false;
 						guilds[guild.id].firstRun = true;
 						guilds[guild.id].running = true;
+						guilds[guild.id].msgLimiter = []
 						guilds[guild.id].collector = new Discord.MessageCollector(guilds[guild.id].textChannel, m => m);
 
 						guilds[guild.id].textChannel.sendMessage("Sorry, I had to take a break! Attempting to restart music in **" + guilds[guild.id].voiceChannel.name + "**!")
@@ -1617,7 +1618,6 @@ function getPlist(plistId, pageToken = null, plist, callback) {
 		})
 	}
 }
-
 function stop(msg) {
 	guilds[msg.guild.id].queue = {};
 	guilds[msg.guild.id].queue.uArray = [];
@@ -1634,6 +1634,15 @@ function stop(msg) {
 	guilds[msg.guild.id].running = false;
 
 	return;
+}
+
+function checkUser(arrayItem) {
+	if (arrayItem.num < 5) {
+		arrayItem.num++
+		return true
+	} else {
+		return false
+	}
 }
 
 function shuffle(array) {
@@ -1669,7 +1678,21 @@ String.prototype.toHHMMSS = function () {
 
 client.on('message', msg => {
 	if (!msg.content.startsWith(tokens.prefix)) return;
-	if (commands.hasOwnProperty(msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0])) commands[msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0]](msg)
+	if (commands.hasOwnProperty(msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0])) {
+		let userString = msg.author.username
+
+		if (guilds[msg.guild.id].msgLimiter.userString !== undefined) {
+			if (checkUser(guilds[msg.guild.id].msgLimiter.userString)) {
+				console.log(guilds[msg.guild.id].msgLimiter.userString)
+				commands[msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0]](msg)
+			} else {
+				msg.reply("You've sent too many messages! Wait a few seconds and try again!")
+			}
+		} else {
+			guilds[msg.guild.id].msgLimiter.userString = {num : 1}
+			commands[msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0]](msg)
+		}
+	}
 	else {
 		if (msg.content !== '-song' && msg.content !== '-pause' && msg.content !== '-resume' && msg.content !== '-skip') {
 			msg.channel.sendMessage("No command with that name found! I'll run the help command for you in just a second.")
@@ -1679,6 +1702,13 @@ client.on('message', msg => {
 		}
 	}
 });
+
+client.setInterval(() => {
+	console.log("Resetting now!")
+	client.guilds.forEach(guild => {
+		guilds[guild.id].msgLimiter = []
+	})
+}, 20000)
 
 client.login(tokens.t_token)
 
