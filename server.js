@@ -92,15 +92,10 @@ const commands = {
 										setTimeout(() => {
 											guilds[msg.guild.id].queue.playing = false
 											commands.start(msg)
-										}, 500)
+										}, 5000)
 									});
 									guilds[msg.guild.id].textChannel.sendMessage(`Playing: **${song.title}** as requested by: **${song.requester}**` + "\nGet information about the current song with -**song**!");
-									try {
-
-										guilds[msg.guild.id].dispatcher = msg.guild.voiceConnection.playStream(yt(song.url, { audioonly: true, quality: 18 }), { passes: tokens.passes, seek: seek });
-									} catch (err) {
-
-									}
+									guilds[msg.guild.id].dispatcher = msg.guild.voiceConnection.playStream(yt(song.url, { audioonly: true, quality: 18 }), { passes: tokens.passes, seek: seek });
 									guilds[msg.guild.id].running = true;
 									//console.log(guilds[msg.guild.id].firstRun);
 									if (guilds[msg.guild.id].firstRun) {
