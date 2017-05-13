@@ -45,424 +45,377 @@ let guilds = {};
 
 const commands = {
 	'start': (msg) => {
+		if (messageCheck(msg, false, true, false)) {
+			commands.radio(msg);
+			setTimeout(() => {
+				guilds[msg.guild.id].clientUser = msg.guild.member(client.user);
+				if (!msg.guild.voiceConnection) return join(guilds[msg.guild.id].voiceChannel).then(() => commands.start(msg));
+				if (guilds[msg.guild.id].queue.playing) return msg.channel.sendMessage('Music is already playing!')
+				guilds[msg.guild.id].queue.playing = true;
 
-		if (msg.channel.id !== guilds[msg.guild.id].textChannel.id) {
-			msg.channel.sendMessage("Wrong text channel! Commands must be issued in #**" + guilds[msg.guild.id].textChannel.name + "**!");
-		} else {
-			if (guilds[msg.guild.id].voiceChannel === undefined) {
-				msg.channel.sendMessage("You haven't set a voice channel! I can't function without one :(")
-			} else {
-				if (msg.member.voiceChannel === undefined) {
-					msg.channel.sendMessage("You aren't in a voice channel! Join **" + guilds[msg.guild.id].voiceChannel.name + "** and retry your command!")
-				} else {
-					if (msg.member.voiceChannel.name !== guilds[msg.guild.id].voiceChannel.name) {
-						msg.channel.sendMessage("Wrong Voice Channel! Commands must be issued in while in **" + guilds[msg.guild.id].voiceChannel.name + "** voice channel!");
-					} else {
-						commands.radio(msg);
+				(function play(song, seek = 0) {
+					guilds[msg.guild.id].song = song
+					console.log(song);
+					if (song === undefined) return msg.channel.sendMessage('Queue is empty at the moment, retrying').then(() => {
 						setTimeout(() => {
-							guilds[msg.guild.id].clientUser = msg.guild.member(client.user);
-							if (!msg.guild.voiceConnection) return join(guilds[msg.guild.id].voiceChannel).then(() => commands.start(msg));
-							if (guilds[msg.guild.id].queue.playing) return msg.channel.sendMessage('Music is already playing!')
-							guilds[msg.guild.id].queue.playing = true;
-
-							(function play(song, seek = 0) {
-								guilds[msg.guild.id].song = song
-								console.log(song);
-								if (song === undefined) return msg.channel.sendMessage('Queue is empty at the moment, retrying').then(() => {
-									setTimeout(() => {
-										guilds[msg.guild.id].queue.playing = false
-										commands.start(msg)
-									}, 5000)
-								});
-								guilds[msg.guild.id].textChannel.sendMessage(`Playing: **${song.title}** as requested by: **${song.requester}**` + "\nGet information about the current song with -**song**!");
-								guilds[msg.guild.id].dispatcher = msg.guild.voiceConnection.playStream(yt(song.url, { audioonly: true, quality: 18 }), { passes: tokens.passes, seek: seek });
-								guilds[msg.guild.id].running = true;
-								//console.log(guilds[msg.guild.id].firstRun);
-								if (guilds[msg.guild.id].firstRun) {
-									guilds[msg.guild.id].queue.uArray.length === 0 ? guilds[msg.guild.id].queue.rArray.shift() : guilds[msg.guild.id].queue.uArray.shift();
-									guilds[msg.guild.id].firstRun = false;
-								}
-
-								guilds[msg.guild.id].collector = new Discord.MessageCollector(guilds[msg.guild.id].textChannel, m => m);
-
-								var voiceChannel = guilds[msg.guild.id].voiceChannel;
-
-								let members = voiceChannel.members.array().length;
-
-								if (guilds[msg.guild.id].queue.playing) {
-									guilds[msg.guild.id].collector.on('collect', m => {
-										setInterval(function () {
-											var voiceChannel = guilds[msg.guild.id].voiceChannel;
-											if (guilds[msg.guild.id].running) {
-												members = voiceChannel.members.array().length;
-												//console.log('members: ' + members);
-												if (guilds[msg.guild.id].collector.channel !== guilds[msg.guild.id].textChannel) {
-													console.log('-----Setting channel!-----');
-													guilds[msg.guild.id].collector.channel = guilds[msg.guild.id].textChannel;
-													//console.log(guilds[msg.guild.id].collector);
-												}
-												if (guilds[msg.guild.id].clientUser !== undefined) {
-													if (guilds[msg.guild.id].voiceChannel !== guilds[msg.guild.id].clientUser.voiceChannel) {
-														guilds[msg.guild.id].voiceChannel = guilds[msg.guild.id].clientUser.voiceChannel;
-														writeDB()
-													}
-												} if (guilds[msg.guild.id].clientUser === undefined) {
-													join(guilds[msg.guild.id].voiceChannel)
-												}
-												//console.log("Dispatcher type: " + typeof (guilds[msg.guild.id].dispatcher))
-												if (guilds[msg.guild.id].dispatcher === undefined) {
-													guilds[msg.guild.id].textChannel.sendMessage("There was an issue, so I'm stopping the music! To start it again, join **" + guilds[msg.guild.id].voiceChannel + "** and type " + tokens.prefix + "**start**!")
-													stop(msg)
-													msg.guild.voiceConnection.disconnect()
-													// client.guilds.forEach(guild => {
-													// 	setTimeout(() => {
-													// 		console.log(guild.name + ": Owned by " + guild.owner.displayName)
-													// 		readDB(guild)
-													// 	}, 250)
-													// })
-												}
-												if (!guilds[msg.guild.id].isPaused) {
-													if (members < 2) {
-														guilds[msg.guild.id].dispatcher.pause()
-													} else {
-														guilds[msg.guild.id].dispatcher.resume()
-													}
-												}
-											}
-										}, 500);
-										if (m.content.toLowerCase().startsWith(tokens.prefix + 'pause')) {
-											if (m.channel.id !== guilds[m.guild.id].textChannel.id) {
-												m.channel.sendMessage("Wrong text channel! Commands must be issued in #**" + guilds[m.guild.id].textChannel.name + "**!");
-											} else {
-												if (m.member.voiceChannel === undefined) {
-													m.channel.sendMessage("You aren't in a voice channel! Join **" + guilds[msg.guild.id].voiceChannel.name + "** and retry your command!")
-												} else {
-													if (m.member.voiceChannel.name !== guilds[m.guild.id].voiceChannel.name) {
-														m.channel.sendMessage("Wrong Voice Channel! Commands must be issued in while in **" + guilds[m.guild.id].voiceChannel.name + "** voice channel!");
-													} else {
-														let roles = m.member.roles.array();
-														if (m.author.id === tokens.adminID) {
-															m.channel.sendMessage("**CREATOR " + m.author.username.toUpperCase() + " TRUMPS ALL**");
-															setTimeout(() => {
-																m.channel.sendMessage('Music Paused! Resume with ' + tokens.prefix + '**resume**').then(() => { guilds[msg.guild.id].dispatcher.pause(); });
-																guilds[m.guild.id].isPaused = true;
-																guilds[m.guild.id].uniquePause = [];
-															}, 250);
-															return;
-														}
-														if (m.author.id === m.guild.ownerID) {
-															m.channel.sendMessage('**' + m.author.username.toUpperCase() + " TRUMPS ALL**");
-															setTimeout(() => {
-																m.channel.sendMessage('Music Paused! Resume with ' + tokens.prefix + '**resume**').then(() => { guilds[msg.guild.id].dispatcher.pause(); });
-																guilds[m.guild.id].isPaused = true;
-																guilds[m.guild.id].uniquePause = [];
-															}, 250);
-															return;
-														}
-														for (i = 0; i < roles.length; i++) {
-															console.log(roles[i].name)
-															for (j = 0; j < guilds[m.guild.id].moderators.length; j++) {
-																if (roles[i].name === guilds[m.guild.id].moderators[j]) {
-																	m.channel.sendMessage('**' + m.author.username.toUpperCase() + " TRUMPS ALL**");
-																	setTimeout(() => {
-																		m.channel.sendMessage('Music Paused! Resume with ' + tokens.prefix + '**resume**').then(() => { guilds[msg.guild.id].dispatcher.pause(); });
-																		guilds[m.guild.id].isPaused = true;
-																		guilds[m.guild.id].uniquePause = [];
-																	}, 250);
-																	return;
-																}
-															}
-														}
-														if (guilds[msg.guild.id].uniquePause.length == 0) {
-															guilds[msg.guild.id].uniquePause.push(m.author.id);
-															m.reply("Vote processed!");
-
-														} else if (guilds[m.guild.id].uniquePause.length > 0) {
-															if (!guilds[m.guild.id].uniquePause.find((element) => { return element == m.author.id; })) {
-																guilds[m.guild.id].uniquePause.push(m.author.id);
-																m.reply('Vote processed!');
-															} else {
-																m.reply('You have already voted!');
-															}
-														}
-														if ((guilds[m.guild.id].uniquePause.length / (members - 1)) >= .5) {
-															setTimeout(() => {
-																m.channel.sendMessage('Music Paused! Resume with ' + tokens.prefix + '**resume**').then(() => { guilds[msg.guild.id].dispatcher.pause(); });
-																guilds[m.guild.id].isPaused = true;
-																guilds[m.guild.id].uniquePause = [];
-															}, 500);
-														} else {
-															setTimeout(() => {
-																m.channel.sendMessage((Math.round((members - 1) / 2) - guilds[msg.guild.id].uniquePause.length) + ' more vote' + ((Math.round((members - 1) / 2) - guilds[m.guild.id].uniquePause.length) > 1 ? 's' : '') + ' required! ' + guilds[m.guild.id].uniquePause.length + ' of ' + (members - 1) + ' members have voted!');
-															}, 500);
-														}
-													}
-												}
-											}
-										} else if (m.content.toLowerCase().startsWith(tokens.prefix + 'resume')) {
-											if (m.channel.id !== guilds[m.guild.id].textChannel.id) {
-												m.channel.sendMessage("Wrong text channel! Commands must be issued in #**" + guilds[m.guild.id].textChannel.name + "**!");
-											} else {
-												if (m.member.voiceChannel === undefined) {
-													m.channel.sendMessage("You aren't in a voice channel! Join **" + guilds[msg.guild.id].voiceChannel.name + "** and retry your command!")
-												} else {
-													if (m.member.voiceChannel.name !== guilds[m.guild.id].voiceChannel.name) {
-														m.channel.sendMessage("Wrong Voice Channel! Commands must be issued in while in **" + guilds[m.guild.id].voiceChannel.name + "** voice channel!");
-													} else {
-														let roles = m.member.roles.array();
-														if (m.author.id === tokens.adminID) {
-															m.channel.sendMessage("**CREATOR " + m.author.username.toUpperCase() + " TRUMPS ALL**");
-															setTimeout(() => {
-																m.channel.sendMessage('Music Resumed! Pause with ' + tokens.prefix + '**pause**').then(() => { guilds[msg.guild.id].dispatcher.resume(); });
-																guilds[m.guild.id].isPaused = false;
-																guilds[m.guild.id].uniqueResume = [];
-															}, 250);
-															return;
-														}
-														if (m.author.id === m.guild.ownerID) {
-															m.channel.sendMessage('**' + m.author.username.toUpperCase() + " TRUMPS ALL**");
-															setTimeout(() => {
-																m.channel.sendMessage('Music Resumed! Pause with ' + tokens.prefix + '**pause**').then(() => { guilds[msg.guild.id].dispatcher.resume(); });
-																guilds[m.guild.id].isPaused = false;
-																guilds[m.guild.id].uniqueResume = [];
-															}, 250);
-															return;
-														}
-														for (i = 0; i < roles.length; i++) {
-															console.log(roles[i].name)
-															for (j = 0; j < guilds[m.guild.id].moderators.length; j++) {
-																if (roles[i].name === guilds[m.guild.id].moderators[j]) {
-																	m.channel.sendMessage('**' + m.author.username.toUpperCase() + " TRUMPS ALL**");
-																	setTimeout(() => {
-																		m.channel.sendMessage('Music Resumed! Pause with ' + tokens.prefix + '**pause**').then(() => { guilds[msg.guild.id].dispatcher.resume(); });
-																		guilds[m.guild.id].isPaused = false;
-																		guilds[m.guild.id].uniqueResume = [];
-																	}, 250);
-																	return;
-																}
-															}
-														}
-														if (guilds[msg.guild.id].uniqueResume.length == 0) {
-															guilds[msg.guild.id].uniqueResume.push(m.author.id);
-															m.reply("Vote processed!");
-														} else if (guilds[m.guild.id].uniqueResume.length > 0) {
-															if (!guilds[m.guild.id].uniqueResume.find((element) => { return element == m.author.id; })) {
-																guilds[m.guild.id].uniqueResume.push(m.author.id);
-																m.reply('Vote processed!');
-															} else {
-																m.reply('You have already voted!');
-															}
-														}
-														if ((guilds[m.guild.id].uniqueResume.length / (members - 1)) >= .5) {
-															setTimeout(() => {
-																m.channel.sendMessage('Music Resumed! Pause with ' + tokens.prefix + '**pause**').then(() => { guilds[msg.guild.id].dispatcher.resume(); });
-																guilds[m.guild.id].isPaused = false;
-																guilds[m.guild.id].uniqueResume = [];
-															}, 500);
-														} else {
-															setTimeout(() => {
-																m.channel.sendMessage((Math.round((members - 1) / 2) - guilds[msg.guild.id].uniqueResume.length) + ' more vote' + ((Math.round((members - 1) / 2) - guilds[m.guild.id].uniqueResume.length) > 1 ? 's' : '') + ' required! ' + guilds[m.guild.id].uniqueResume.length + ' of ' + (members - 1) + ' members have voted!');
-															}, 500);
-														}
-													}
-												}
-											}
-										} else if (m.content.toLowerCase().startsWith(tokens.prefix + 'skip')) {
-											if (m.channel.id !== guilds[msg.guild.id].textChannel.id) {
-												m.channel.sendMessage("Wrong text channel! Commands must be issued in #**" + guilds[msg.guild.id].textChannel.name + "**!");
-											} else {
-												if (m.member.voiceChannel === undefined) {
-													msg.channel.sendMessage("You aren't in a voice channel! Join **" + guilds[msg.guild.id].voiceChannel.name + "** and retry your command!")
-												} else {
-													if (m.member.voiceChannel.name !== guilds[msg.guild.id].voiceChannel.name) {
-														m.channel.sendMessage("Wrong Voice Channel! Commands must be issued in while in **" + guilds[m.guild.id].voiceChannel.name + "** voice channel!");
-													} else {
-														let roles = m.member.roles.array();
-														if (m.author.id === tokens.adminID) {
-															m.channel.sendMessage("**CREATOR " + m.author.username.toUpperCase() + " TRUMPS ALL**");
-															setTimeout(() => {
-																m.channel.sendMessage('Song skipped!').then(() => { guilds[msg.guild.id].dispatcher.end(); });
-															}, 250);
-															return;
-														}
-														else if (m.author.id === m.guild.ownerID) {
-															m.channel.sendMessage('**' + m.author.username.toUpperCase() + " TRUMPS ALL**");
-															setTimeout(() => {
-																m.channel.sendMessage('Song skipped!').then(() => { guilds[msg.guild.id].dispatcher.end(); });
-															}, 250);
-															return;
-														}
-														for (i = 0; i < roles.length; i++) {
-															console.log(roles[i].name)
-															for (j = 0; j < guilds[m.guild.id].moderators.length; j++) {
-																if (roles[i].name === guilds[m.guild.id].moderators[j]) {
-																	m.channel.sendMessage('**' + m.author.username.toUpperCase() + " TRUMPS ALL**");
-																	setTimeout(() => {
-																		m.channel.sendMessage('Song skipped!').then(() => { guilds[msg.guild.id].dispatcher.end(); });
-																	}, 250);
-																	return;
-																}
-															}
-														}
-														if (guilds[msg.guild.id].uniqueSkips.length == 0) {
-															guilds[msg.guild.id].uniqueSkips.push(m.author.id);
-															m.reply("Vote processed!");
-
-														} else if (guilds[m.guild.id].uniqueSkips.length > 0) {
-															if (!guilds[m.guild.id].uniqueSkips.find((element) => { return element == m.author.id; })) {
-																guilds[m.guild.id].uniqueSkips.push(m.author.id);
-																m.reply('Vote processed!');
-															} else {
-																m.reply('You have already voted!');
-															}
-														}
-														console.log(guilds[m.guild.id].uniqueSkips.length);
-														if ((guilds[m.guild.id].uniqueSkips.length / (members - 1)) >= .5) {
-															setTimeout(() => {
-																m.channel.sendMessage('Song skipped!').then(() => { guilds[msg.guild.id].dispatcher.end(); });
-															}, 500);
-														} else {
-															setTimeout(() => {
-																m.channel.sendMessage((Math.round((members - 1) / 2) - guilds[msg.guild.id].uniqueSkips.length) + ' more vote' + ((Math.round((members - 1) / 2) - guilds[m.guild.id].uniqueSkips.length) > 1 ? 's' : '') + ' required! ' + guilds[m.guild.id].uniqueSkips.length + ' of ' + (members - 1) + ' members have voted!');
-															}, 500);
-														}
-													}
-												}
-											}
-										} else if (m.content.toLowerCase().startsWith(tokens.prefix + 'song')) {
-											if (m.channel.id !== guilds[msg.guild.id].textChannel.id) {
-												m.channel.sendMessage("Wrong text channel! Commands must be issued in #**" + guilds[m.guild.id].textChannel.name + "**!");
-											} else {
-												m.reply("Getting information for current song!")
-												yt.getInfo(song.url, (err, info) => {
-													if (err) return m.channel.sendMessage("I couldn't get the video information :(");
-													m.channel.sendMessage('Current Song: **' + info.title + '**\nRequested By: **' + song.requester + '**\nSong Time:  **' + (guilds[m.guild.id].dispatcher.time / 1000).toString().toHHMMSS() + '** / **' + info.length_seconds.toHHMMSS() + '**\nTime Remaining:  **' + (((info.length_seconds * 1000) - guilds[m.guild.id].dispatcher.time) / 1000).toString().toHHMMSS() + '**\nWatch Link: ' + song.url);
-												});
-											}
-										}
-									});
-								}
-
-								guilds[msg.guild.id].dispatcher.on('end', () => {
-									console.log('Playing next song')
-									setTimeout(() => {
-										guilds[msg.guild.id].collector.stop();
-										if (guilds[msg.guild.id].running) {
-											guilds[msg.guild.id].uniqueSkips = [];
-											guilds[msg.guild.id].uniquePause = [];
-											guilds[msg.guild.id].uniqueResume = [];
-											play((guilds[msg.guild.id].queue.uArray.length === 0 ? guilds[msg.guild.id].queue.rArray.shift() : guilds[msg.guild.id].queue.uArray.shift()))
-										}
-									}, 250)
-								});
-								guilds[msg.guild.id].dispatcher.on('error', (err) => {
-									console.log('THERE WAS AN ERROR DAD PLS');
-									return console.log('ERROR: ' + err).then(() => {
-										guilds[msg.guild.id].collector.stop();
-										play(guilds[msg.guild.id].queue.uArray.length === 0 ? guilds[msg.guild.id].queue.rArray.shift() : guilds[msg.guild.id].queue.uArray.shift());
-									});
-								});
-							})(guilds[msg.guild.id].queue.uArray.length === 0 ? guilds[msg.guild.id].queue.rArray[0] : guilds[msg.guild.id].queue.uArray[0]);
-						}, 2000);
+							guilds[msg.guild.id].queue.playing = false
+							commands.start(msg)
+						}, 5000)
+					});
+					guilds[msg.guild.id].textChannel.sendMessage(`Playing: **${song.title}** as requested by: **${song.requester}**` + "\nGet information about the current song with -**song**!");
+					guilds[msg.guild.id].dispatcher = msg.guild.voiceConnection.playStream(yt(song.url, { audioonly: true, quality: 18 }), { passes: tokens.passes, seek: seek });
+					guilds[msg.guild.id].running = true;
+					//console.log(guilds[msg.guild.id].firstRun);
+					if (guilds[msg.guild.id].firstRun) {
+						guilds[msg.guild.id].queue.uArray.length === 0 ? guilds[msg.guild.id].queue.rArray.shift() : guilds[msg.guild.id].queue.uArray.shift();
+						guilds[msg.guild.id].firstRun = false;
 					}
-				}
-			}
+
+					guilds[msg.guild.id].collector = new Discord.MessageCollector(guilds[msg.guild.id].textChannel, m => m);
+
+					var voiceChannel = guilds[msg.guild.id].voiceChannel;
+
+					let members = voiceChannel.members.array().length;
+
+					if (guilds[msg.guild.id].queue.playing) {
+						guilds[msg.guild.id].collector.on('collect', m => {
+							setInterval(function () {
+								if (!guilds[msg.guild.id]) return
+								var voiceChannel = guilds[msg.guild.id].voiceChannel;
+								if (guilds[msg.guild.id].running && guilds[msg.guild.id] !== undefined) {
+									members = voiceChannel.members.array().length;
+									//console.log('members: ' + members);
+									if (guilds[msg.guild.id].collector.channel !== guilds[msg.guild.id].textChannel) {
+										console.log('-----Setting channel!-----');
+										guilds[msg.guild.id].collector.channel = guilds[msg.guild.id].textChannel;
+										//console.log(guilds[msg.guild.id].collector);
+									}
+									if (guilds[msg.guild.id].clientUser !== undefined) {
+										if (guilds[msg.guild.id].voiceChannel !== guilds[msg.guild.id].clientUser.voiceChannel) {
+											guilds[msg.guild.id].voiceChannel = guilds[msg.guild.id].clientUser.voiceChannel;
+											writeDB()
+										}
+									} if (guilds[msg.guild.id].clientUser === undefined) {
+										join(guilds[msg.guild.id].voiceChannel)
+									}
+									//console.log("Dispatcher type: " + typeof (guilds[msg.guild.id].dispatcher))
+									if (guilds[msg.guild.id].dispatcher === undefined) {
+										guilds[msg.guild.id].textChannel.sendMessage("There was an issue, so I'm stopping the music! To start it again, join **" + guilds[msg.guild.id].voiceChannel + "** and type " + tokens.prefix + "**start**!")
+										stop(msg)
+										msg.guild.voiceConnection.disconnect()
+										// client.guilds.forEach(guild => {
+										// 	setTimeout(() => {
+										// 		console.log(guild.name + ": Owned by " + guild.owner.displayName)
+										// 		readDB(guild)
+										// 	}, 250)
+										// })
+									}
+									if (!guilds[msg.guild.id].isPaused) {
+										if (members < 2) {
+											guilds[msg.guild.id].dispatcher.pause()
+										} else {
+											guilds[msg.guild.id].dispatcher.resume()
+										}
+									}
+								}
+							}, 500);
+							if (m.content.toLowerCase().startsWith(tokens.prefix + 'pause')) {
+								if (messageCheck(m, false, true)) {
+									let roles = m.member.roles.array();
+									if (m.author.id === tokens.adminID) {
+										m.channel.sendMessage("**CREATOR " + m.author.username.toUpperCase() + " TRUMPS ALL**");
+										setTimeout(() => {
+											m.channel.sendMessage('Music Paused! Resume with ' + tokens.prefix + '**resume**').then(() => { guilds[msg.guild.id].dispatcher.pause(); });
+											guilds[m.guild.id].isPaused = true;
+											guilds[m.guild.id].uniquePause = [];
+										}, 250);
+										return;
+									}
+									if (m.author.id === m.guild.ownerID) {
+										m.channel.sendMessage('**' + m.author.username.toUpperCase() + " TRUMPS ALL**");
+										setTimeout(() => {
+											m.channel.sendMessage('Music Paused! Resume with ' + tokens.prefix + '**resume**').then(() => { guilds[msg.guild.id].dispatcher.pause(); });
+											guilds[m.guild.id].isPaused = true;
+											guilds[m.guild.id].uniquePause = [];
+										}, 250);
+										return;
+									}
+									for (i = 0; i < roles.length; i++) {
+										console.log(roles[i].name)
+										for (j = 0; j < guilds[m.guild.id].moderators.length; j++) {
+											if (roles[i].name === guilds[m.guild.id].moderators[j]) {
+												m.channel.sendMessage('**' + m.author.username.toUpperCase() + " TRUMPS ALL**");
+												setTimeout(() => {
+													m.channel.sendMessage('Music Paused! Resume with ' + tokens.prefix + '**resume**').then(() => { guilds[msg.guild.id].dispatcher.pause(); });
+													guilds[m.guild.id].isPaused = true;
+													guilds[m.guild.id].uniquePause = [];
+												}, 250);
+												return;
+											}
+										}
+									}
+									if (guilds[msg.guild.id].uniquePause.length == 0) {
+										guilds[msg.guild.id].uniquePause.push(m.author.id);
+										m.reply("Vote processed!");
+
+									} else if (guilds[m.guild.id].uniquePause.length > 0) {
+										if (!guilds[m.guild.id].uniquePause.find((element) => { return element == m.author.id; })) {
+											guilds[m.guild.id].uniquePause.push(m.author.id);
+											m.reply('Vote processed!');
+										} else {
+											m.reply('You have already voted!');
+										}
+									}
+									if ((guilds[m.guild.id].uniquePause.length / (members - 1)) >= .5) {
+										setTimeout(() => {
+											m.channel.sendMessage('Music Paused! Resume with ' + tokens.prefix + '**resume**').then(() => { guilds[msg.guild.id].dispatcher.pause(); });
+											guilds[m.guild.id].isPaused = true;
+											guilds[m.guild.id].uniquePause = [];
+										}, 500);
+									} else {
+										setTimeout(() => {
+											m.channel.sendMessage((Math.round((members - 1) / 2) - guilds[msg.guild.id].uniquePause.length) + ' more vote' + ((Math.round((members - 1) / 2) - guilds[m.guild.id].uniquePause.length) > 1 ? 's' : '') + ' required! ' + guilds[m.guild.id].uniquePause.length + ' of ' + (members - 1) + ' members have voted!');
+										}, 500);
+									}
+								}
+							} else if (m.content.toLowerCase().startsWith(tokens.prefix + 'resume')) {
+								if (messageCheck(m, false, true)) {
+									let roles = m.member.roles.array();
+									if (m.author.id === tokens.adminID) {
+										m.channel.sendMessage("**CREATOR " + m.author.username.toUpperCase() + " TRUMPS ALL**");
+										setTimeout(() => {
+											m.channel.sendMessage('Music Resumed! Pause with ' + tokens.prefix + '**pause**').then(() => { guilds[msg.guild.id].dispatcher.resume(); });
+											guilds[m.guild.id].isPaused = false;
+											guilds[m.guild.id].uniqueResume = [];
+										}, 250);
+										return;
+									}
+									if (m.author.id === m.guild.ownerID) {
+										m.channel.sendMessage('**' + m.author.username.toUpperCase() + " TRUMPS ALL**");
+										setTimeout(() => {
+											m.channel.sendMessage('Music Resumed! Pause with ' + tokens.prefix + '**pause**').then(() => { guilds[msg.guild.id].dispatcher.resume(); });
+											guilds[m.guild.id].isPaused = false;
+											guilds[m.guild.id].uniqueResume = [];
+										}, 250);
+										return;
+									}
+									for (i = 0; i < roles.length; i++) {
+										console.log(roles[i].name)
+										for (j = 0; j < guilds[m.guild.id].moderators.length; j++) {
+											if (roles[i].name === guilds[m.guild.id].moderators[j]) {
+												m.channel.sendMessage('**' + m.author.username.toUpperCase() + " TRUMPS ALL**");
+												setTimeout(() => {
+													m.channel.sendMessage('Music Resumed! Pause with ' + tokens.prefix + '**pause**').then(() => { guilds[msg.guild.id].dispatcher.resume(); });
+													guilds[m.guild.id].isPaused = false;
+													guilds[m.guild.id].uniqueResume = [];
+												}, 250);
+												return;
+											}
+										}
+									}
+									if (guilds[msg.guild.id].uniqueResume.length == 0) {
+										guilds[msg.guild.id].uniqueResume.push(m.author.id);
+										m.reply("Vote processed!");
+									} else if (guilds[m.guild.id].uniqueResume.length > 0) {
+										if (!guilds[m.guild.id].uniqueResume.find((element) => { return element == m.author.id; })) {
+											guilds[m.guild.id].uniqueResume.push(m.author.id);
+											m.reply('Vote processed!');
+										} else {
+											m.reply('You have already voted!');
+										}
+									}
+									if ((guilds[m.guild.id].uniqueResume.length / (members - 1)) >= .5) {
+										setTimeout(() => {
+											m.channel.sendMessage('Music Resumed! Pause with ' + tokens.prefix + '**pause**').then(() => { guilds[msg.guild.id].dispatcher.resume(); });
+											guilds[m.guild.id].isPaused = false;
+											guilds[m.guild.id].uniqueResume = [];
+										}, 500);
+									} else {
+										setTimeout(() => {
+											m.channel.sendMessage((Math.round((members - 1) / 2) - guilds[msg.guild.id].uniqueResume.length) + ' more vote' + ((Math.round((members - 1) / 2) - guilds[m.guild.id].uniqueResume.length) > 1 ? 's' : '') + ' required! ' + guilds[m.guild.id].uniqueResume.length + ' of ' + (members - 1) + ' members have voted!');
+										}, 500);
+									}
+								}
+							} else if (m.content.toLowerCase().startsWith(tokens.prefix + 'skip')) {
+								if (messageCheck(m, false, true)) {
+									let roles = m.member.roles.array();
+									if (m.author.id === tokens.adminID) {
+										console.log("Admin sent the message!")
+										m.channel.sendMessage("**CREATOR " + m.author.username.toUpperCase() + " TRUMPS ALL**");
+										m.channel.sendMessage('Song skipped!')
+										guilds[msg.guild.id].dispatcher.end()
+										return;
+									}
+									else if (m.author.id === m.guild.ownerID) {
+										console.log("Owner sent the message!")
+										m.channel.sendMessage('**' + m.author.username.toUpperCase() + " TRUMPS ALL**");
+										setTimeout(() => {
+											m.channel.sendMessage('Song skipped!')
+											guilds[msg.guild.id].dispatcher.end()
+										}, 250);
+										return;
+									}
+									for (i = 0; i < roles.length; i++) {
+										console.log(roles[i].name)
+										for (j = 0; j < guilds[m.guild.id].moderators.length; j++) {
+											if (roles[i].name === guilds[m.guild.id].moderators[j]) {
+												console.log("Moderator sent the message!")
+												m.channel.sendMessage('**' + m.author.username.toUpperCase() + " TRUMPS ALL**");
+												setTimeout(() => {
+													m.channel.sendMessage('Song skipped!')
+													guilds[msg.guild.id].dispatcher.end()
+												}, 250);
+												return;
+											}
+										}
+									}
+									if (guilds[msg.guild.id].uniqueSkips.length == 0) {
+										guilds[msg.guild.id].uniqueSkips.push(m.author.id);
+										console.log("Processing skip vote for " + m.author.username)
+										m.reply("Vote processed!");
+
+									} else if (guilds[m.guild.id].uniqueSkips.length > 0) {
+										if (!guilds[m.guild.id].uniqueSkips.find((element) => { return element == m.author.id; })) {
+											guilds[m.guild.id].uniqueSkips.push(m.author.id);
+											console.log("Processing skip vote for " + m.author.username)
+											m.reply('Vote processed!');
+										} else {
+											m.reply('You have already voted!');
+										}
+									}
+									console.log(guilds[m.guild.id].uniqueSkips.length);
+									if ((guilds[m.guild.id].uniqueSkips.length / (members - 1)) >= .5) {
+										setTimeout(() => {
+											console.log("Voted to skip!")
+											m.channel.sendMessage('Song skipped!')
+											guilds[msg.guild.id].dispatcher.end()
+											return
+										}, 500);
+									} else {
+										setTimeout(() => {
+											m.channel.sendMessage((Math.round((members - 1) / 2) - guilds[msg.guild.id].uniqueSkips.length) + ' more vote' + ((Math.round((members - 1) / 2) - guilds[m.guild.id].uniqueSkips.length) > 1 ? 's' : '') + ' required! ' + guilds[m.guild.id].uniqueSkips.length + ' of ' + (members - 1) + ' members have voted!');
+										}, 500);
+									}
+								}
+							} else if (m.content.toLowerCase().startsWith(tokens.prefix + 'song')) {
+								if (messageCheck(m, true)) {
+									m.reply("Getting information for current song!")
+									yt.getInfo(song.url, (err, info) => {
+										if (err) return m.channel.sendMessage("I couldn't get the video information :(");
+										m.channel.sendMessage('Current Song: **' + info.title + '**\nRequested By: **' + song.requester + '**\nSong Time:  **' + (guilds[m.guild.id].dispatcher.time / 1000).toString().toHHMMSS() + '** / **' + info.length_seconds.toHHMMSS() + '**\nTime Remaining:  **' + (((info.length_seconds * 1000) - guilds[m.guild.id].dispatcher.time) / 1000).toString().toHHMMSS() + '**\nWatch Link: ' + song.url);
+									});
+								}
+							}
+						});
+					}
+
+					guilds[msg.guild.id].dispatcher.on('end', () => {
+						console.log('Playing next song')
+						if (guilds[msg.guild.id].running) {
+							guilds[msg.guild.id].collector.stop();
+							guilds[msg.guild.id].uniqueSkips = [];
+							guilds[msg.guild.id].uniquePause = [];
+							guilds[msg.guild.id].uniqueResume = [];
+							play((guilds[msg.guild.id].queue.uArray.length === 0 ? guilds[msg.guild.id].queue.rArray.shift() : guilds[msg.guild.id].queue.uArray.shift()))
+						}
+					});
+					guilds[msg.guild.id].dispatcher.on('error', (err) => {
+						console.log('THERE WAS AN ERROR DAD PLS');
+						return console.log('ERROR: ' + err).then(() => {
+							guilds[msg.guild.id].collector.stop();
+							play(guilds[msg.guild.id].queue.uArray.length === 0 ? guilds[msg.guild.id].queue.rArray.shift() : guilds[msg.guild.id].queue.uArray.shift());
+						});
+					});
+				})(guilds[msg.guild.id].queue.uArray.length === 0 ? guilds[msg.guild.id].queue.rArray[0] : guilds[msg.guild.id].queue.uArray[0]);
+			}, 2000);
 		}
 	},
 	'list': (msg) => {
-		if (msg.channel.id !== guilds[msg.guild.id].textChannel.id) {
-			msg.channel.sendMessage("Wrong text channel! Commands must be issued in #**" + guilds[msg.guild.id].textChannel.name + "**!");
-		} else {
+		if (messageCheck(msg, true)) {
 			if (guilds[msg.guild.id].queue === undefined || (guilds[msg.guild.id].queue.rArray.length === 0 && guilds[msg.guild.id].queue.uArray.length === 0)) return msg.channel.sendMessage(`Add some songs to the queue first with ${tokens.prefix}**play**, or start the radio with ` + tokens.prefix + `**start**!`);
 			let tosend = [];
 			if (guilds[msg.guild.id].queue.uArray.length !== 0) {
 				tosend.push(`#User Queue:\n`)
-				guilds[msg.guild.id].queue.uArray.forEach((song, i) => { tosend.push(`${i + 1}. ${song.title.length > 35 ? song.title.substring(0, 35) + '...': song.title}\n${(i + 1) > 9 ? ' ' : ''}   Requested by: ${song.requester.length > 20 ? song.requester.substring(0, 20) + '...' : song.requester}\n`); });
+				guilds[msg.guild.id].queue.uArray.forEach((song, i) => { tosend.push(`${i + 1}. ${song.title.length > 35 ? song.title.substring(0, 35) + '...' : song.title}\n${(i + 1) > 9 ? ' ' : ''}   Requested by: ${song.requester.length > 20 ? song.requester.substring(0, 20) + '...' : song.requester}\n`); });
 				tosend.push(`#Radio Queue:\n`)
-				guilds[msg.guild.id].queue.rArray.forEach((song, i) => { tosend.push(`${(guilds[msg.guild.id].queue.uArray.length) + i + 1}. ${song.title.length > 35 ? song.title.substring(0, 35) + '...': song.title}\n${((guilds[msg.guild.id].queue.uArray.length) + i + 1) > 9 ? ' ' : ''}   Requested by: ${song.requester.length > 20 ? song.requester.substring(0, 20) + '...' : song.requester}\n`); });
+				guilds[msg.guild.id].queue.rArray.forEach((song, i) => { tosend.push(`${(guilds[msg.guild.id].queue.uArray.length) + i + 1}. ${song.title.length > 35 ? song.title.substring(0, 35) + '...' : song.title}\n${((guilds[msg.guild.id].queue.uArray.length) + i + 1) > 9 ? ' ' : ''}   Requested by: ${song.requester.length > 20 ? song.requester.substring(0, 20) + '...' : song.requester}\n`); });
 
 				msg.channel.sendMessage(`__**${msg.guild.name}'s Music Queue:**__ Currently **${tosend.length}** songs queued ${(tosend.length > 15 ? '*[Only next 15 shown]*' : '')}\n\`\`\`markdown\n${tosend.slice(0, 17).join('\n')}\`\`\``);
 			} else {
 				tosend.push(`#Radio Queue:\n`)
-				guilds[msg.guild.id].queue.rArray.forEach((song, i) => { tosend.push(`${i + 1}. ${song.title.length > 35 ? song.title.substring(0, 35) + '...': song.title}\n${(i + 1) > 9 ? ' ' : ''}   Requested by: ${song.requester.length > 20 ? song.requester.substring(0, 20) + '...' : song.requester}\n`); });
+				guilds[msg.guild.id].queue.rArray.forEach((song, i) => { tosend.push(`${i + 1}. ${song.title.length > 35 ? song.title.substring(0, 35) + '...' : song.title}\n${(i + 1) > 9 ? ' ' : ''}   Requested by: ${song.requester.length > 20 ? song.requester.substring(0, 20) + '...' : song.requester}\n`); });
 
 				msg.channel.sendMessage(`__**${msg.guild.name}'s Music Queue:**__ Currently **${tosend.length - 1}** songs queued ${(tosend.length > 15 ? '***[Only next 15 shown]***' : '')}\n\`\`\`markdown\n${tosend.slice(0, 16).join('\n')}\`\`\``);
 			}
 		}
 	},
 	'help': (msg) => {
-		if (msg.channel.id !== guilds[msg.guild.id].textChannel.id) {
-			msg.channel.sendMessage("Wrong text channel! Commands must be issued in #**" + guilds[msg.guild.id].textChannel.name + "**!");
-		} else {
-			msg.channel.sendMessage("", {
-				embed: {
-					color: 14289237,
-					title: 'Bot Information and Commands',
-					description: 'Hi! This dialog is here to provide useful information about bot usage!',
-					fields: [{
-						name: '**Channel Information**',
-						value: 'Current text channel: **#' + guilds[msg.guild.id].textChannel.name + '**\nCurrent voice channel: **' + guilds[msg.guild.id].voiceChannel.name + '**'
-					},
-					{
-						name: '**The following require a voice channel**',
-						value: tokens.prefix + 'start     : Starts playing music if it\'s not playing.\n' +
-						tokens.prefix + 'play      : Adds a youtube video to the queue.\n' +
-						tokens.prefix + 'addlist   : Adds a youtube playlist to the queue.'
-					},
-					{
-						name: '**The following are used while music plays**',
-						value: tokens.prefix + 'pause     : Pauses the music. (requires majority)\n' +
-						tokens.prefix + 'resume    : Resumes the music. (requires majority)\n' +
-						tokens.prefix + 'skip      : Skips the playing song. (requires majority)\n' +
-						tokens.prefix + 'song      : Shows information about the current song.'
-					},
-					{
-						name: '**The following do not require a voice channel**',
-						value: tokens.prefix + 'help      : Displays available commands.\n' +
-						tokens.prefix + 'list      : Shows the current queue.\n' +
-						tokens.prefix + 'search    : Searches YouTube for top 5 results of query.\n' +
-						tokens.prefix + 'related   : Shows top three related items for video given'
-					},
-					{
-						name: '**Owner Commands**',
-						value: tokens.prefix + 'setvoice  : Sets the bot\'s voice channel.\n' +
-						tokens.prefix + 'settext   : Sets the bot\'s text channel.\n' +
-						tokens.prefix + 'addmod    : Adds role to list of trusted roles.\n' +
-						tokens.prefix + 'removemod : Removes role from list of trusted roles.\n' +
-						tokens.prefix + 'listmod   : Displays currently added roles.'
-					},
-					{
-						name: '**Moderator Commands** *(Owner can use)*',
-						value: tokens.prefix + 'shuffle   : Shuffles the user queue.\n' +
-						tokens.prefix + 'clear     : Clears the user queue.\n' +
-						tokens.prefix + 'remove    : Removes song from queue.\n' +
-						tokens.prefix + 'bump      : Bumps song to front of user queue.\n' +
-						tokens.prefix + 'pause     : Bypass vote and pauses music.\n' +
-						tokens.prefix + 'resume    : Bypass vote and resumes music.\n' +
-						tokens.prefix + 'skip      : Bypass vote and skips current song.'
-					},
-					{
-						name: '**Command Usage**',
-						value: tokens.prefix + 'play 	 [term] [url] [id]\n' +
-						tokens.prefix + 'addlist   [playlist id]\n' +
-						tokens.prefix + 'search    [term to search]\n' +
-						tokens.prefix + 'related   [term]\n' +
-						tokens.prefix + 'setvoice  [voice channel name]\n' +
-						tokens.prefix + 'settext   [text channel name]\n' +
-						tokens.prefix + 'addmod    [role name]\n' +
-						tokens.prefix + 'removemod [role name]\n' +
-						tokens.prefix + 'remove    [index of song]\n' +
-						tokens.prefix + 'bump      [index of song]\n'
-					}
-					]
+		msg.channel.sendMessage("", {
+			embed: {
+				color: 14289237,
+				title: 'Bot Information and Commands',
+				description: 'Hi! This dialog is here to provide useful information about bot usage!',
+				fields: [{
+					name: '**Channel Information**',
+					value: 'Current text channel: **' + (guilds[msg.guild.id].textChannel === undefined ? "Text channel not set" : guilds[msg.guild.id].textChannel) + '**\nCurrent voice channel: **' + (guilds[msg.guild.id].voiceChannel === undefined ? "Voice channel not set" : guilds[msg.guild.id].voiceChannel.name) + '**'
+				},
+				{
+					name: '**The following require a voice channel**',
+					value: tokens.prefix + '**start**     : Starts playing music if it\'s not playing.\n' +
+					tokens.prefix + '**play**      : Adds a youtube video to the queue.\n' +
+					tokens.prefix + '**addlist**   : Adds a youtube playlist to the queue.'
+				},
+				{
+					name: '**The following are used while music plays**',
+					value: tokens.prefix + '**pause**     : Pauses the music. (requires majority)\n' +
+					tokens.prefix + '**resume**    : Resumes the music. (requires majority)\n' +
+					tokens.prefix + '**skip**      : Skips the playing song. (requires majority)\n' +
+					tokens.prefix + '**song**      : Shows information about the current song.'
+				},
+				{
+					name: '**The following do not require a voice channel**',
+					value: tokens.prefix + '**help**      : Displays available commands.\n' +
+					tokens.prefix + '**list**      : Shows the current queue.\n' +
+					tokens.prefix + '**search**    : Searches YouTube for top 5 results of query.\n' +
+					tokens.prefix + '**related**   : Shows top three related items for term or current song.'
+				},
+				{
+					name: '**Owner Commands**',
+					value: tokens.prefix + '**setvoice**  : Sets the bot\'s voice channel.\n' +
+					tokens.prefix + '**settext**   : Sets the bot\'s text channel.\n' +
+					tokens.prefix + '**addmod**    : Adds role to list of trusted roles.\n' +
+					tokens.prefix + '**removemod** : Removes role from list of trusted roles.\n' +
+					tokens.prefix + '**listmod**   : Displays currently added roles.'
+				},
+				{
+					name: '**Owner and Moderator Commands**',
+					value: tokens.prefix + '**shuffle**   : Shuffles the user queue.\n' +
+					tokens.prefix + '**clear**     : Clears the user queue.\n' +
+					tokens.prefix + '**remove**    : Removes song from queue.\n' +
+					tokens.prefix + '**bump**      : Bumps song to front of user queue.\n' +
+					tokens.prefix + '**pause**     : Bypass vote and pauses music.\n' +
+					tokens.prefix + '**resume**    : Bypass vote and resumes music.\n' +
+					tokens.prefix + '**skip**      : Bypass vote and skips current song.'
+				},
+				{
+					name: '**Command Usage** __(Only for commands with parameters)__',
+					value: '```fix\n' + tokens.prefix + 'play 	 [term] [url] [id]\n' +
+					tokens.prefix + 'addlist   [playlist id]\n' +
+					tokens.prefix + 'search    [term to search]\n' +
+					tokens.prefix + 'related   [term]\n' +
+					tokens.prefix + 'setvoice  [voice channel name]\n' +
+					tokens.prefix + 'settext   [text channel name]\n' +
+					tokens.prefix + 'addmod    [role name]\n' +
+					tokens.prefix + 'removemod [role name]\n' +
+					tokens.prefix + 'remove    [index of song]\n' +
+					tokens.prefix + 'bump      [index of song]```'
 				}
-			});
-		}
+				]
+			}
+		});
 	},
 	'stop': (msg) => {
-		if (msg.channel.id !== guilds[msg.guild.id].textChannel.id) {
-			msg.channel.sendMessage("Wrong text channel! Commands must be issued in #**" + guilds[msg.guild.id].textChannel.name + "**!");
-		} else {
+		if (messageCheck(msg, true)) {
 			let roles = msg.member.roles.array();
 			if (msg.author.id == msg.guild.ownerID || msg.author.id == tokens.adminID) {
 				msg.reply("Yes sir! To start the music again, join **" + guilds[msg.guild.id].voiceChannel.name + "**  and type " + tokens.prefix + "**start**!")
@@ -475,7 +428,7 @@ const commands = {
 				console.log(roles[i].name)
 				for (j = 0; j < guilds[msg.guild.id].moderators.length; j++) {
 					if (roles[i].name === guilds[msg.guild.id].moderators[j]) {
-						msg.reply("Gotcha! To start it again, join **" + guilds[msg.guild.id].voiceChannel.name + "**  and type " + tokens.prefix + "**start**!")
+						msg.reply("Gotcha! To start it again, join **" + guilds[msg.guild.id].voiceChannel.name + "** and type " + tokens.prefix + "**start**!")
 						console.log("Stopping!")
 						stop(msg);
 						msg.guild.voiceConnection.disconnect();
@@ -498,15 +451,14 @@ const commands = {
 					for (i = 0; i < lines.length; i++) {
 
 						(function (i) {
-							var timer = setTimeout(function () {
-								//console.log('running ' + guilds[msg.guild.id].running);
+							let timer = setTimeout(function () {
+								if (!guilds[msg.guild.id]) return
 								yt.getInfo(lines[i].toString(), (err, info) => {
 									if (err) {
 										console.log('Invalid YouTube Link: ' + err);
 									} else {
 										guilds[msg.guild.id].queue.rArray.push({ url: lines[i].toString(), title: info.title, requester: 'Radio Jesus' });
-										console.log("Radio index: " + i);
-										console.log(`added **${info.title}** to the queue`);
+										console.log(msg.guild.name + "'s Radio index: " + i + `\nadded ${info.title} to ${msg.guild.name}'s queue\n`);
 									}
 								});
 							}, 1500 * i)
@@ -518,66 +470,50 @@ const commands = {
 		}
 	},
 	'addlist': (msg) => {
-		if (msg.channel.id !== guilds[msg.guild.id].textChannel.id) {
-			msg.channel.sendMessage("Wrong text channel! Commands must be issued in #**" + guilds[msg.guild.id].textChannel.name + "**!");
-		} else {
-			if (guilds[msg.guild.id].voiceChannel === undefined) {
-				msg.channel.sendMessage("You haven't set a voice channel! I can't function without one :(")
-			} else {
-				if (msg.member.voiceChannel === undefined) {
-					msg.channel.sendMessage("You aren't in a voice channel! Join **" + guilds[msg.guild.id].voiceChannel.name + "** and retry your command!")
-				} else {
-					if (msg.member.voiceChannel.name !== guilds[msg.guild.id].voiceChannel.name) {
-						msg.channel.sendMessage("Wrong Voice Channel! Commands must be issued in while in **" + guilds[msg.guild.id].voiceChannel.name + "** voice channel!");
-					} else {
-						let term = msg.content.substring(msg.content.indexOf(' ') + 1);
+		if (messageCheck(msg, false, true)) {
+			let term = msg.content.substring(msg.content.indexOf(' ') + 1);
 
-						if (term == '' || term === undefined || term == '-addlist' || term == '-addlist ') return msg.channel.sendMessage(`You must specify a playlist ID after ${tokens.prefix}**addlist**!\n` + "```Usage: " + tokens.prefix + "addlist [playlist ID]```")
+			if (term == '' || term === undefined || term == '-addlist' || term == '-addlist ') return msg.channel.sendMessage(`You must specify a playlist ID after ${tokens.prefix}**addlist**!\n` + "```Usage: " + tokens.prefix + "addlist [playlist ID]```")
 
-						msg.channel.sendMessage("Attempting to get playlist content!")
-						var playlist = []
+			msg.channel.sendMessage("Attempting to get playlist content!")
+			var playlist = []
 
-						if ((term.startsWith('https://') || term.startsWith('www.')) && term.includes('list')) {
-							term = term.substring(term.lastIndexOf('=') + 1)
-						}
-
-						setTimeout(() => {
-
-							getPlist(term, null, playlist, function (playlist) {
-								if (playlist === null) return msg.channel.sendMessage("Invalid Playlist ID! I need either a link with the list parameter included or a valid playlist id!```https://youtube.com/playlist?list=[Playlist ID]```")
-								playlist = shuffle(playlist)
-								msg.channel.sendMessage("Got it! Adding **" + Object.keys(playlist).length + "** videos from **" + playlist[0].snippet.channelTitle + "**'s playlist!")
-								for (i = (Object.keys(playlist).length - 1); i >= 0; i--) {
-									(function (i) {
-										var tmr = setTimeout(function () {
-											console.log(i)
-											if (playlist[i] !== undefined) {
-												console.log(playlist[i].snippet.resourceId.videoId)
-
-												yt.getInfo(('https://youtu.be/' + playlist[i].snippet.resourceId.videoId), (err, info) => {
-													if (err) console.log('Invalid YouTube Link: ' + err);
-													else {
-														if (info.livestream === '1') return msg.channel.sendMessage('This is a livestream!');
-														guilds[msg.guild.id].queue.rArray.unshift({ url: ('https://youtu.be/' + playlist[i].snippet.resourceId.videoId), title: info.title, requester: (msg.author.username + " (" + playlist[0].snippet.channelTitle + "'s Playlist)") });
-													}
-												});
-											} else {
-												console.log(playlist[i])
-											}
-										}, 750 * i)
-									})(i);
-								}
-							})
-						}, 250)
-					}
-				}
+			if ((term.startsWith('https://') || term.startsWith('www.')) && term.includes('list')) {
+				term = term.substring(term.lastIndexOf('=') + 1)
 			}
+
+			setTimeout(() => {
+
+				getPlist(term, null, playlist, function (playlist) {
+					if (playlist === null) return msg.channel.sendMessage("Invalid Playlist ID! I need either a link with the list parameter included or a valid playlist id!```https://youtube.com/playlist?list=[Playlist ID]```")
+					playlist = shuffle(playlist)
+					msg.channel.sendMessage("Got it! Adding **" + Object.keys(playlist).length + "** videos from **" + playlist[0].snippet.channelTitle + "**'s playlist!")
+					for (i = (Object.keys(playlist).length - 1); i >= 0; i--) {
+						(function (i) {
+							var tmr = setTimeout(function () {
+								console.log(i)
+								if (playlist[i] !== undefined) {
+									console.log(playlist[i].snippet.resourceId.videoId)
+
+									yt.getInfo(('https://youtu.be/' + playlist[i].snippet.resourceId.videoId), (err, info) => {
+										if (err) console.log('Invalid YouTube Link: ' + err);
+										else {
+											if (info.livestream === '1') return msg.channel.sendMessage('This is a livestream!');
+											guilds[msg.guild.id].queue.rArray.unshift({ url: ('https://youtu.be/' + playlist[i].snippet.resourceId.videoId), title: info.title, requester: (msg.author.username + " (" + playlist[0].snippet.channelTitle + "'s Playlist)") });
+										}
+									});
+								} else {
+									console.log(playlist[i])
+								}
+							}, 750 * i)
+						})(i);
+					}
+				})
+			}, 250)
 		}
 	},
 	'search': (msg) => {
-		if (msg.channel.id !== guilds[msg.guild.id].textChannel.id) {
-			msg.channel.sendMessage("Wrong text channel! Commands must be issued in #**" + guilds[msg.guild.id].textChannel.name + "**!");
-		} else {
+		if (messageCheck(msg, true)) {
 			let term = msg.content.substring(msg.content.indexOf(' ') + 1)
 			let url_id = ""
 			let url_base = "https://youtu.be/"
@@ -618,9 +554,7 @@ const commands = {
 		}
 	},
 	'related': (msg) => {
-		if (msg.channel.id !== guilds[msg.guild.id].textChannel.id) {
-			msg.channel.sendMessage("Wrong text channel! Commands must be issued in #**" + guilds[msg.guild.id].textChannel.name + "**!");
-		} else {
+		if (messageCheck(msg, true)) {
 			let term = msg.content.substring(msg.content.indexOf(' ') + 1)
 
 			console.log("Term: " + term)
@@ -703,82 +637,66 @@ const commands = {
 		}
 	},
 	'play': (msg) => {
-		if (msg.channel.id !== guilds[msg.guild.id].textChannel.id) {
-			msg.channel.sendMessage("Wrong text channel! Commands must be issued in #**" + guilds[msg.guild.id].textChannel.name + "**!");
-		} else {
-			if (guilds[msg.guild.id].voiceChannel === undefined) {
-				msg.channel.sendMessage("You haven't set a voice channel! I can't function without one :(")
-			} else {
-				if (msg.member.voiceChannel === undefined) {
-					msg.channel.sendMessage("You aren't in a voice channel! Join **" + guilds[msg.guild.id].voiceChannel.name + "** and retry your command!")
-				} else {
-					if (msg.member.voiceChannel.name !== guilds[msg.guild.id].voiceChannel.name) {
-						msg.channel.sendMessage("Wrong Voice Channel! Commands must be issued in while in **" + guilds[msg.guild.id].voiceChannel.name + "** voice channel!");
-					} else {
-						let term = msg.content.substring(msg.content.indexOf(' ') + 1);
-						let url_id = "";
-						let url_base = "https://youtu.be/";
+		if (messageCheck(msg, false, true)) {
+			let term = msg.content.substring(msg.content.indexOf(' ') + 1);
+			let url_id = "";
+			let url_base = "https://youtu.be/";
 
-						console.log(term);
+			console.log(term);
 
-						if (term == '' || term === undefined || term == '-play' || term == '-play ') return msg.channel.sendMessage(`You must specify a video name or URL after ${tokens.prefix}play!\n` + "```Usage: " + tokens.prefix + "play [term] [url]```");
-						else {
-							if ((term.charAt(0) == 'w' && term.charAt(1) == 'w' && term.charAt(2) == 'w' && term.charAt(3) == '.') || (term.charAt(0) == 'h' && term.charAt(1) == 't' && term.charAt(2) == 't' && term.charAt(3) == 'p' && (term.charAt(4) == ':' || (term.charAt(4) == 's' && term.charAt(5) == ':')))) {
-								if (term.toString() !== null) {
-									yt.getInfo(term.toString(), (err, info) => {
-										if (err) return msg.channel.sendMessage(err);
-										if (info.livestream === '1') return msg.channel.sendMessage('This is a livestream!');
-										//console.log(info);
-										//if (!guilds[msg.guild.id].queue.hasOwnProperty(msg.guild.id)) queue[msg.guild.id] = {}, queue[msg.guild.id].playing = false, queue[msg.guild.id].songs = [], queue[msg.guild.id].rArray = [], queue[msg.guild.id].uArray = [];
-										let time = info.length_seconds
+			if (term == '' || term === undefined || term == '-play' || term == '-play ') return msg.channel.sendMessage(`You must specify a video name or URL after ${tokens.prefix}play!\n` + "```Usage: " + tokens.prefix + "play [term] [url]```");
+			else {
+				if ((term.charAt(0) == 'w' && term.charAt(1) == 'w' && term.charAt(2) == 'w' && term.charAt(3) == '.') || (term.charAt(0) == 'h' && term.charAt(1) == 't' && term.charAt(2) == 't' && term.charAt(3) == 'p' && (term.charAt(4) == ':' || (term.charAt(4) == 's' && term.charAt(5) == ':')))) {
+					if (term.toString() !== null) {
+						yt.getInfo(term.toString(), (err, info) => {
+							if (err) return msg.channel.sendMessage(err);
+							if (info.livestream === '1') return msg.channel.sendMessage('This is a livestream!');
+							//console.log(info);
+							//if (!guilds[msg.guild.id].queue.hasOwnProperty(msg.guild.id)) queue[msg.guild.id] = {}, queue[msg.guild.id].playing = false, queue[msg.guild.id].songs = [], queue[msg.guild.id].rArray = [], queue[msg.guild.id].uArray = [];
+							let time = info.length_seconds
 
-										guilds[msg.guild.id].queue.uArray.push({ url: term, title: info.title, requester: msg.author.username });
-										//queue[msg.guild.id].songs.unshift({ url: term, title: info.title, requester: msg.author.username });
-										msg.channel.sendMessage(`**${info.title}** has been added to the queue! (Song Time: **` + time.toString().toHHMMSS() + `**)`);
-									});
-								}
-							} else {
-								yt_client.search(term, 2, function (error, result) {
-									if (error) {
-										console.log("Nope!")
-										console.log(error)
-									} else {
-										console.log("Success!")
-										if (result.items[0] != undefined)
-											url_id = JSON.stringify(result.items[0].id.videoId, null, 2);
-										if (url_id != undefined) {
-											url_id = url_id.toString().substring(1, url_id.length - 1);
-
-											console.log(url_id);
-
-											let url_f = url_base + url_id;
-											yt.getInfo(url_f, (err, info) => {
-												if (err) return msg.channel.sendMessage('I couldn\'t find a video with that name!');
-												if (info.livestream === '1') return msg.channel.sendMessage('This is a livestream!');
-												//if (!queue.hasOwnProperty(msg.guild.id)) queue[msg.guild.id] = {}, queue[msg.guild.id].playing = false, queue[msg.guild.id].songs = [], queue[msg.guild.id].rArray = [], queue[msg.guild.id].uArray = [];
-
-												let time = info.length_seconds
-
-												guilds[msg.guild.id].queue.uArray.push({ url: url_f, title: info.title, requester: msg.author.username });
-												//queue[msg.guild.id].songs.unshift({ url: url_f, title: info.title, requester: msg.author.username });
-												msg.channel.sendMessage(`**${info.title}** has been added to the queue! (Song Time: **` + time.toString().toHHMMSS() + `**)`)
-											})
-										}
-										else
-											msg.channel.sendMessage("I couldn\'t find a video with that name!");
-									}
-								});
-							}
-						}
+							guilds[msg.guild.id].queue.uArray.push({ url: term, title: info.title, requester: msg.author.username });
+							//queue[msg.guild.id].songs.unshift({ url: term, title: info.title, requester: msg.author.username });
+							msg.channel.sendMessage(`**${info.title}** has been added to the queue! (Song Time: **` + time.toString().toHHMMSS() + `**)`);
+						});
 					}
+				} else {
+					yt_client.search(term, 2, function (error, result) {
+						if (error) {
+							console.log("Nope!")
+							console.log(error)
+						} else {
+							console.log("Success!")
+							if (result.items[0] != undefined)
+								url_id = JSON.stringify(result.items[0].id.videoId, null, 2);
+							if (url_id != undefined) {
+								url_id = url_id.toString().substring(1, url_id.length - 1);
+
+								console.log(url_id);
+
+								let url_f = url_base + url_id;
+								yt.getInfo(url_f, (err, info) => {
+									if (err) return msg.channel.sendMessage('I couldn\'t find a video with that name!');
+									if (info.livestream === '1') return msg.channel.sendMessage('This is a livestream!');
+									//if (!queue.hasOwnProperty(msg.guild.id)) queue[msg.guild.id] = {}, queue[msg.guild.id].playing = false, queue[msg.guild.id].songs = [], queue[msg.guild.id].rArray = [], queue[msg.guild.id].uArray = [];
+
+									let time = info.length_seconds
+
+									guilds[msg.guild.id].queue.uArray.push({ url: url_f, title: info.title, requester: msg.author.username });
+									//queue[msg.guild.id].songs.unshift({ url: url_f, title: info.title, requester: msg.author.username });
+									msg.channel.sendMessage(`**${info.title}** has been added to the queue! (Song Time: **` + time.toString().toHHMMSS() + `**)`)
+								})
+							}
+							else
+								msg.channel.sendMessage("I couldn\'t find a video with that name!");
+						}
+					});
 				}
 			}
 		}
 	},
 	'bump': (msg) => {
-		if (msg.channel.id !== guilds[msg.guild.id].textChannel.id) {
-			msg.channel.sendMessage("Wrong text channel! Commands must be issued in #**" + guilds[msg.guild.id].textChannel.name + "**!");
-		} else {
+		if (messageCheck(msg, true)) {
 			let term = msg.content.substring(msg.content.indexOf(' ') + 1);
 
 			console.log(term);
@@ -857,9 +775,7 @@ const commands = {
 		}
 	},
 	'clear': (msg) => {
-		if (msg.channel.id !== guilds[msg.guild.id].textChannel.id) {
-			msg.channel.sendMessage("Wrong text channel! Commands must be issued in #**" + guilds[msg.guild.id].textChannel.name + "**!");
-		} else {
+		if (messageCheck(msg, true)) {
 			if (guilds[msg.guild.id].queue.uArray.length > 0) {
 				if (guilds[msg.guild.id].queue.uArray.length > 0) {
 					let roles = msg.member.roles.array();
@@ -885,9 +801,7 @@ const commands = {
 		}
 	},
 	'shuffle': (msg) => {
-		if (msg.channel.id !== guilds[msg.guild.id].textChannel.id) {
-			msg.channel.sendMessage("Wrong text channel! Commands must be issued in #**" + guilds[msg.guild.id].textChannel.name + "**!");
-		} else {
+		if (messageCheck(msg, true)) {
 			if (guilds[msg.guild.id].queue.uArray.length > 0) {
 				if (guilds[msg.guild.id].queue.uArray.length > 0) {
 					let roles = msg.member.roles.array();
@@ -913,9 +827,7 @@ const commands = {
 		}
 	},
 	'remove': (msg) => {
-		if (msg.channel.id !== guilds[msg.guild.id].textChannel.id) {
-			msg.channel.sendMessage("Wrong text channel! Commands must be issued in #**" + guilds[msg.guild.id].textChannel.name + "**!");
-		} else {
+		if (messageCheck(msg, true)) {
 			let term = msg.content.substring(msg.content.indexOf(' ') + 1);
 
 			console.log(term);
@@ -984,8 +896,8 @@ const commands = {
 		}
 	},
 	'settext': (msg) => {
-		let channels = msg.guild.channels;
-		if (msg.author.id === msg.guild.owner.id || msg.author.id === tokens.adminID) {
+		if (messageCheck(msg, false, false, true)) {
+			let channels = msg.guild.channels;
 			let term = msg.content.substring(msg.content.indexOf(' ') + 1);
 			if (term == '-settext') {
 				msg.channel.sendMessage("No text channel was provided!\n" + "```Usage: " + tokens.prefix + "settext [text channel]```");
@@ -1004,13 +916,11 @@ const commands = {
 					}
 				}
 			}
-		} else {
-			msg.reply("You're not the owner :(");
 		}
 	},
 	'setvoice': (msg) => {
-		let channels = msg.guild.channels;
-		if (msg.author.id === msg.guild.owner.id || msg.author.id === tokens.adminID) {
+		if (messageCheck(msg, false, false, true)) {
+			let channels = msg.guild.channels;
 			let term = msg.content.substring(msg.content.indexOf(' ') + 1);
 			if (term == '-setvoice') {
 				msg.channel.sendMessage("No voice channel was provided!\n" + "```Usage: " + tokens.prefix + "setvoice [voice channel]```");
@@ -1027,82 +937,60 @@ const commands = {
 							console.log(toSet[i].name + ' ' + toSet[i].id)
 							msg.reply("Okay! **" + toSet[i].name + "** set as music bot voice channel! Please issue further commands while in this channel!");
 							guilds[msg.guild.id].voiceChannel = toSet[i];
+							join(guilds[msg.guild.id].voiceChannel)
 							writeDB()
-							setTimeout(() => {
-								guilds[msg.guild.id].voiceChannel.join().then(connection => console.log('Connected!')).catch(console.error);
-							}, 1000);
 						}
 					}
 				}
 			}
-		} else {
-			msg.reply("You're not the owner :(");
 		}
 	},
 	'addmod': (msg) => {
-		if (msg.channel.id !== guilds[msg.guild.id].textChannel.id) {
-			msg.channel.sendMessage("Wrong text channel! Commands must be issued in #**" + guilds[msg.guild.id].textChannel.name + "**!");
-		} else {
+		if (messageCheck(msg, false, false, true)) {
 			let roles = msg.guild.roles.array();
 			console.log(roles);
-			if (msg.author.id === tokens.adminID || msg.author.id === msg.guild.owner.id) {
-				let term = msg.content.substring(msg.content.indexOf(' ') + 1);
-				if (term == '-setmod') {
-					msg.channel.sendMessage("No group name was provided!\n" + "```Usage: " + tokens.prefix + "setmod [role name]```");
-				} else {
-					for (i = 0; i < roles.length; i++) {
-						if (roles[i].name.toUpperCase() === term.toUpperCase()) {
-							guilds[msg.guild.id].moderators.push(roles[i].name);
-							writeDB()
-							msg.channel.sendMessage("**" + roles[i].name + "** found! Added to list of bot moderators!");
-						}
+			let term = msg.content.substring(msg.content.indexOf(' ') + 1);
+			if (term == '-setmod') {
+				msg.channel.sendMessage("No group name was provided!\n" + "```Usage: " + tokens.prefix + "setmod [role name]```");
+			} else {
+				for (i = 0; i < roles.length; i++) {
+					if (roles[i].name.toUpperCase() === term.toUpperCase()) {
+						guilds[msg.guild.id].moderators.push(roles[i].name);
+						writeDB()
+						msg.channel.sendMessage("**" + roles[i].name + "** found! Added to list of bot moderators!");
 					}
 				}
-			} else {
-				msg.reply("You're not the owner :(");
 			}
 		}
 	},
 	'removemod': (msg) => {
-		if (msg.channel.id !== guilds[msg.guild.id].textChannel.id) {
-			msg.channel.sendMessage("Wrong text channel! Commands must be issued in #**" + guilds[msg.guild.id].textChannel.name + "**!");
-		} else {
+		if (messageCheck(msg, false, false, true)) {
 			let roles = msg.guild.roles.array();
 			console.log(roles);
-			if (msg.author.id === tokens.adminID || msg.author.id === msg.guild.owner.id) {
-				let term = msg.content.substring(msg.content.indexOf(' ') + 1);
-				if (term == '-removemod' || term == '-removemod ' || term == undefined || term == ' ') {
-					msg.channel.sendMessage("No group name was provided!\n" + "```Usage: " + tokens.prefix + "setmod [role name]```");
-				} else {
-					for (i = 0; i < roles.length; i++) {
-						if (roles[i].name.toUpperCase() === term.toUpperCase()) {
-							var index = guilds[msg.guild.id].moderators.indexOf(term)
-							guilds[msg.guild.id].moderators.splice(index, 1);
-							writeDB()
-							msg.channel.sendMessage("**" + roles[i].name + "** found! Removed from the list of bot moderators!");
-						}
+			let term = msg.content.substring(msg.content.indexOf(' ') + 1);
+			if (term == '-removemod' || term == '-removemod ' || term == undefined || term == ' ') {
+				msg.channel.sendMessage("No group name was provided!\n" + "```Usage: " + tokens.prefix + "setmod [role name]```");
+			} else {
+				for (i = 0; i < roles.length; i++) {
+					if (roles[i].name.toUpperCase() === term.toUpperCase()) {
+						var index = guilds[msg.guild.id].moderators.indexOf(term)
+						guilds[msg.guild.id].moderators.splice(index, 1);
+						writeDB()
+						msg.channel.sendMessage("**" + roles[i].name + "** found! Removed from the list of bot moderators!");
 					}
 				}
-			} else {
-				msg.reply("You're not the owner :(");
 			}
 		}
 	},
 	'listmod': (msg) => {
-		if (msg.channel.id !== guilds[msg.guild.id].textChannel.id) {
-			msg.channel.sendMessage("Wrong text channel! Commands must be issued in #**" + guilds[msg.guild.id].textChannel.name + "**!");
-		} else {
+		if (messageCheck(msg, false, false, true)) {
 			let roles = msg.guild.roles.array();
-			if (msg.author.id === tokens.adminID || msg.author.id === msg.guild.owner.id) {
-				let mods = []
-				if (guilds[msg.guild.id].moderators === [] || guilds[msg.guild.id].moderators.length === 0) return msg.channel.sendMessage("No moderators have been added! Only the owner can control me right now!")
-				for (i = 0; i < guilds[msg.guild.id].moderators.length; i++) {
-					mods.push(guilds[msg.guild.id].moderators[i])
-				}
-				msg.channel.sendMessage(`**${msg.guild.name}**'s List of Moderators:\n\`\`\`diff\n${mods.join('\n')}\`\`\``);
-			} else {
-				msg.reply("You're not the owner :(");
+			let mods = []
+			if (guilds[msg.guild.id].moderators === [] || guilds[msg.guild.id].moderators.length === 0) return msg.channel.sendMessage("No moderators have been added! Only the owner can control me right now!")
+			for (i = 0; i < guilds[msg.guild.id].moderators.length; i++) {
+				mods.push(guilds[msg.guild.id].moderators[i])
 			}
+			msg.channel.sendMessage(`**${msg.guild.name}**'s List of Moderators:\n\`\`\`diff\n${mods.join('\n')}\`\`\``)
 		}
 	},
 	'reboot': (msg) => {
@@ -1110,36 +998,42 @@ const commands = {
 	}
 };
 
-function init(msg) {
-	guilds[msg.guild.id].textChannel = msg.guild.channels.find('name', msg.channel.name);
-	if (msg.member.voiceChannel === undefined) {
-		console.log("checking channels")
-		for (i = 0; i < msg.guild.channels.array().length; i++) {
-			if (msg.guild.channels.array()[i].type === 'voice') {
-				console.log(msg.guild.channels.array()[i].name + ' ' + msg.guild.channels.array()[i].id)
-				guilds[msg.guild.id].voiceChannel = msg.guild.channels.array()[i];
-				break;
-			}
+function init(guild) {
+	guilds[guild.id] = {}
+	console.log("checking text channels for one joinable")
+	for (i = 0; i < guild.channels.array().length; i++) {
+		if (guild.channels.array()[i].type === 'text') {
+			console.log(guild.channels.array()[i].name + ' ' + guild.channels.array()[i].id)
+			guilds[guild.id].textChannel = guild.channels.array()[i];
+			break;
 		}
-	} else {
-		guilds[msg.guild.id].voiceChannel = msg.member.voiceChannel;
 	}
-	guilds[msg.guild.id].queue = {};
-	guilds[msg.guild.id].queue.uArray = [];
-	guilds[msg.guild.id].queue.rArray = [];
-	guilds[msg.guild.id].moderators = [];
-	guilds[msg.guild.id].uniqueSkips = [];
-	guilds[msg.guild.id].uniquePause = [];
-	guilds[msg.guild.id].uniqueResume = [];
-	guilds[msg.guild.id].uniqueRemove = []
-	guilds[msg.guild.id].ran = false;
-	guilds[msg.guild.id].isPaused = false;
-	guilds[msg.guild.id].firstRun = true;
-	guilds[msg.guild.id].dispatcher;
-	guilds[msg.guild.id].collector = new Discord.MessageCollector(guilds[msg.guild.id].textChannel, m => m);
-	guilds[msg.guild.id].running = true;
+	console.log("checking voice channels for one joinable")
+	for (i = 0; i < guild.channels.array().length; i++) {
+		if (guild.channels.array()[i].type === 'voice' && guild.channels.array()[i].joinable === true) {
+			console.log(guild.channels.array()[i].name + ' ' + guild.channels.array()[i].id)
+			guilds[guild.id].voiceChannel = guild.channels.array()[i];
+			break;
+		}
+	}
+	guilds[guild.id].queue = {};
+	guilds[guild.id].queue.uArray = [];
+	guilds[guild.id].queue.rArray = [];
+	guilds[guild.id].moderators = [];
+	guilds[guild.id].uniqueSkips = [];
+	guilds[guild.id].uniquePause = [];
+	guilds[guild.id].uniqueResume = [];
+	guilds[guild.id].ran = false;
+	guilds[guild.id].isPaused = false;
+	guilds[guild.id].firstRun = true;
+	guilds[guild.id].dispatcher;
+	guilds[guild.id].msgLimiter = []
+	guilds[guild.id].collector = new Discord.MessageCollector(guilds[guild.id].textChannel, m => m);
+	guilds[guild.id].running = true;
 
 	writeDB();
+
+	guilds[guild.id].textChannel.sendMessage("Hi! Since I was just added to the guild I set the channels by default to #**" + guilds[guild.id].textChannel.name + "** for bot commands, and **" + guilds[guild.id].voiceChannel.name + "** for audio!\nSet a text channel with " + tokens.prefix + "**settext** and voice channel with " + tokens.prefix + "**setvoice**");
 
 	return;
 }
@@ -1147,10 +1041,11 @@ function init(msg) {
 function writeDB() {
 	let dbName = "db.json";
 	let toLog = {};
-	console.log('trying the bullshit');
+	console.log('Writing to the database!');
 	for (var i = 0; i < Object.keys(guilds).length; i++) {
-		console.log(Object.keys(guilds[Object.keys(guilds)[i]]).length)
-		if (Object.keys(guilds[Object.keys(guilds)[i]]).length > 3) {
+		console.log(Object.keys(guilds[Object.keys(guilds)[i]].voiceChannel).length)
+		if (Object.keys(guilds[Object.keys(guilds)[i]]).length > 3 && Object.keys(guilds[Object.keys(guilds)[i]].textChannel).length > 0 && Object.keys(guilds[Object.keys(guilds)[i]].voiceChannel).length > 0) {
+			console.log(guilds[Object.keys(guilds)[i]].textChannel.guild.name + " checks out!")
 			toLog[Object.keys(guilds)[i]] = {};
 			toLog[Object.keys(guilds)[i]].textChannel = {};
 			toLog[Object.keys(guilds)[i]].voiceChannel = {};
@@ -1164,8 +1059,8 @@ function writeDB() {
 	}
 
 	fs.writeFile(dbName, jsonFormat(toLog), (err) => {
-		if (err) console.log("OH SHIT NO");
-		else console.log("i did it");
+		if (err) console.log("I had an error");
+		else console.log("I successfully wrote to the database file!");
 	})
 }
 
@@ -1186,7 +1081,7 @@ function readDB(guild) {
 				for (i = 0; i < Object.keys(obj).length; i++) {
 					//console.log(Object.keys(obj)[i])
 					//console.log(guild.id)
-					if (Object.keys(obj)[i] === guild.id && obj[Object.keys(obj)[i]].textChannel.id !== undefined) {
+					if (Object.keys(obj)[i] === guild.id) {
 						//console.log("Text channel to add " + obj[Object.keys(obj)[i]].textChannel.id)
 						//console.log("Voice channel to add " + obj[Object.keys(obj)[i]].voiceChannel.id)
 						guilds[guild.id].textChannel = guildChannels.find('id', obj[Object.keys(obj)[i]].textChannel.id)
@@ -1317,6 +1212,52 @@ function getPlist(plistId, pageToken = null, plist, callback) {
 		})
 	}
 }
+
+function messageCheck(msg, textCheck = false, voiceCheck = false, adminCheck = false) {
+	if (textCheck) {
+		if (msg.channel.id !== guilds[msg.guild.id].textChannel.id) {
+			msg.channel.sendMessage("Wrong text channel! Commands must be issued in #**" + guilds[msg.guild.id].textChannel.name + "**!")
+			return false
+		} else {
+			return true
+		}
+	} else if (voiceCheck) {
+		if (msg.channel.id !== guilds[msg.guild.id].textChannel.id) {
+			msg.channel.sendMessage("Wrong text channel! Commands must be issued in #**" + guilds[msg.guild.id].textChannel.name + "**!")
+			return false
+		} else {
+			if (guilds[msg.guild.id].voiceChannel === undefined) {
+				msg.channel.sendMessage("You haven't set a voice channel! I can't function without one :(")
+				return false
+			} else {
+				if (msg.member.voiceChannel === undefined) {
+					msg.channel.sendMessage("You aren't in a voice channel! Join **" + guilds[msg.guild.id].voiceChannel.name + "** and retry your command!")
+					return false
+				} else {
+					if (msg.member.voiceChannel.name !== guilds[msg.guild.id].voiceChannel.name) {
+						msg.channel.sendMessage("Wrong Voice Channel! Commands must be issued in while in **" + guilds[msg.guild.id].voiceChannel.name + "** voice channel!")
+						return false
+					} else {
+						return true
+					}
+				}
+			}
+		}
+	} else if (adminCheck) {
+		if (msg.channel.id !== guilds[msg.guild.id].textChannel.id) {
+			msg.channel.sendMessage("Wrong text channel! Commands must be issued in #**" + guilds[msg.guild.id].textChannel.name + "**!")
+			return false
+		} else {
+			if (msg.author.id === msg.guild.owner.id || msg.author.id === tokens.adminID) {
+				return true
+			} else {
+				msg.channel.sendMessage("You are not the owner of the guild!")
+				return false
+			}
+		}
+	}
+}
+
 function stop(msg) {
 	guilds[msg.guild.id].uniqueSkips = [];
 	guilds[msg.guild.id].uniquePause = [];
@@ -1332,7 +1273,7 @@ function stop(msg) {
 }
 
 function checkUser(arrayItem) {
-	console.log("Checking user! " + arrayItem + " messages!")
+	console.log("Checking user! " + arrayItem.length + " messages!")
 	if (arrayItem.num < 5) {
 		arrayItem.num++
 		return true
@@ -1385,44 +1326,45 @@ String.prototype.toHHMMSS = function () {
 client.on('message', msg => {
 	if (!msg.content.startsWith(tokens.prefix)) return;
 	if (commands.hasOwnProperty(msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0])) {
-		let userString = msg.author.username
 		console.log("Command emitted by guild " + msg.guild.name + " (id: " + msg.guild.id + "): " + msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0])
-		if (!guilds[msg.guild.id] || guilds[msg.guild.id].textChannel === undefined || guilds[msg.guild.id].voiceChannel === undefined || guilds[msg.guild.id].textChannel === {} || guilds[msg.guild.id].voiceChannel === {}) {
-			console.log("Channel hasn't been added to database, setting up now")
-			guilds[msg.guild.id] = {};
-			init(msg);
-			if (guilds[msg.guild.id].textChannel !== undefined && guilds[msg.guild.id].voiceChannel !== undefined) {
-				msg.channel.sendMessage("Hi! Since this is the first run I set the channels by default to #**" + guilds[msg.guild.id].textChannel.name + "** for bot commands, and **" + guilds[msg.guild.id].voiceChannel.name + "** for audio!\nSet a text channel with " + tokens.prefix + "**settext** and voice channel with " + tokens.prefix + "**setvoice**");
+		// if (!guilds[msg.guild.id] || guilds[msg.guild.id].textChannel === undefined || guilds[msg.guild.id].voiceChannel === undefined || Object.keys(guilds[msg.guild.id].textChannel).length === 0 || Object.keys(guilds[msg.guild.id].voiceChannel).length === 0) {
+		// 	console.log("Channel hasn't been added to database, setting up now")
+		// 	guilds[msg.guild.id] = {};
+		// 	init(msg);
+		// 	if (guilds[msg.guild.id].textChannel !== undefined && guilds[msg.guild.id].voiceChannel !== undefined) {
+		// 		msg.channel.sendMessage("Hi! Since this is the first run I set the channels by default to #**" + guilds[msg.guild.id].textChannel.name + "** for bot commands, and **" + guilds[msg.guild.id].voiceChannel.name + "** for audio!\nSet a text channel with " + tokens.prefix + "**settext** and voice channel with " + tokens.prefix + "**setvoice**");
 
-				setTimeout(function () {
-					if (commands.hasOwnProperty(msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0])) {
-						console.log(commands[msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0]])
-						if (commands[msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0]] !== '-reset' || commands[msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0]] !== '-stop') {
-							msg.reply("Retrying command")
-							setTimeout(function () {
-								commands[msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0]](msg);
-							}, 250);
-						}
-					}
-				}, 500);
+		// 		setTimeout(function () {
+		// 			if (commands.hasOwnProperty(msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0])) {
+		// 				console.log(commands[msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0]])
+		// 				if (commands[msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0]] !== '-reset' || commands[msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0]] !== '-stop') {
+		// 					msg.reply("Retrying command")
+		// 					setTimeout(function () {
+		// 						commands[msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0]](msg);
+		// 					}, 250);
+		// 				}
+		// 			}
+		// 		}, 500);
+		// 	}
+		// } else {
+		//console.log("Guild is registered in database, moving on!")
+		let userString = msg.author.username
+		if (guilds[msg.guild.id].msgLimiter.userString !== undefined) {
+			if (checkUser(guilds[msg.guild.id].msgLimiter.userString)) {
+				console.log(guilds[msg.guild.id].msgLimiter)
+				console.log("I should be running your command!")
+				commands[msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0]](msg)
+			} else {
+				msg.reply("You've sent too many messages! Wait a few seconds and try again!")
 			}
 		} else {
-			console.log("Guild is registered in database, moving on!")
-			if (guilds[msg.guild.id].msgLimiter.userString !== undefined) {
-				if (checkUser(guilds[msg.guild.id].msgLimiter.userString)) {
-					console.log(guilds[msg.guild.id].msgLimiter)
-					console.log("I should be running your command!")
-					commands[msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0]](msg)
-				} else {
-					msg.reply("You've sent too many messages! Wait a few seconds and try again!")
-				}
-			} else {
-				console.log("Should be running it!")
-				guilds[msg.guild.id].msgLimiter.userString = { num: 1 }
-				commands[msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0]](msg)
-			}
+			console.log("Should be running it!")
+			guilds[msg.guild.id].msgLimiter.userString = { num: 1 }
+			commands[msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0]](msg)
 		}
+		//}
 	} else {
+		console.log("Message doesn't have a property, is it a collector command?")
 		if (msg.content.toLowerCase() !== '-song' && msg.content.toLowerCase() !== '-pause' && msg.content.toLowerCase() !== '-resume' && msg.content.toLowerCase() !== '-skip') {
 			msg.channel.sendMessage("I don't have a command for that! Let me show you what I can do.")
 			setTimeout(() => {
@@ -1443,6 +1385,11 @@ client.on('ready', () => {
 	})
 })
 
+client.on('guildCreate', guild => {
+	console.log(guild.name + " is being added to the database!")
+	init(guild)
+})
+
 client.on('guildDelete', guild => {
 	console.log("Removing " + guild.name + " from the database!")
 	delete guilds[guild.id]
@@ -1450,11 +1397,33 @@ client.on('guildDelete', guild => {
 })
 
 client.setInterval(() => {
-	console.log("Resetting message limiter now!")
-	client.guilds.forEach(guild => {
-		guilds[guild.id].msgLimiter = []
-	})
-}, 8000)
+	if (Object.keys(guilds).length > 0) {
+		console.log("Resetting message limiter now!")
+		client.guilds.forEach(guild => {
+			guilds[guild.id].msgLimiter = []
+			// if (guild.channels.find('id', guilds[guild.id].textChannel.id) === null) {
+			// 	console.log("checking text channels for one joinable")
+			// 	for (i = 0; i < guild.channels.array().length; i++) {
+			// 		if (guild.channels.array()[i].type === 'text') {
+			// 			console.log(guild.channels.array()[i].name + ' ' + guild.channels.array()[i].id)
+			// 			guilds[guild.id].textChannel = guild.channels.array()[i];
+			// 			break;
+			// 		}
+			// 	}
+			// }
+			// if (guild.channels.find('id', guilds[guild.id].voiceChannel.id) === null) {
+			// 	console.log("checking voice channels for one joinable")
+			// 	for (i = 0; i < guild.channels.array().length; i++) {
+			// 		if (guild.channels.array()[i].type === 'voice' && guild.channels.array()[i].joinable === true) {
+			// 			console.log(guild.channels.array()[i].name + ' ' + guild.channels.array()[i].id)
+			// 			guilds[guild.id].voiceChannel = guild.channels.array()[i];
+			// 			break;
+			// 		}
+			// 	}
+			// }
+		})
+	}
+}, 5000)
 
 client.login(tokens.t_token)
 
