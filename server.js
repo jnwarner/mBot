@@ -1435,9 +1435,11 @@ client.on('guildDelete', guild => {
 
 client.setInterval(() => {
 	if (Object.keys(guilds).length > 0) {
-		console.log("Resetting message limiter now!")
 		client.guilds.forEach(guild => {
-			guilds[guild.id].msgLimiter = []
+			if (guilds[guild.id].playing) {
+				console.log("Resetting message limiter for " + guild.name + " now!")
+				guilds[guild.id].msgLimiter = []
+			}
 		})
 	}
 }, 8000)
