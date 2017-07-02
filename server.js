@@ -29,298 +29,347 @@ var lines = fs.readFile('playlist.txt', function (err, data) {
 const commands = {
 	'start': (msg) => {
 		if (messageCheck(msg, false, true, false)) {
+			console.log("Attempting to start")
 			guilds[msg.guild.id].clientUser = msg.guild.member(client.user);
 			if (!msg.guild.voiceConnection) return join(guilds[msg.guild.id].voiceChannel).then(() => commands.start(msg));
-			if (guilds[msg.guild.id].playing) return msg.channel.send('Music is already playing!')
+			if (guilds[msg.guild.id].playing) {
+				return msg.channel.send('Music is already playing!')
+			}
 
-				(function play(song, seek = 0) {
-					//console.log(lines)
-					guilds[msg.guild.id].song = song
-					console.log(song);
-					if (song === undefined) {
-						song = (guilds[msg.guild.id].queue.uArray.length === 0 ? guilds[msg.guild.id].queue.rArray[0] : guilds[msg.guild.id].queue.uArray[0])
-						setTimeout(() => {
-							(guilds[msg.guild.id].queue.uArray.length === 0 ? guilds[msg.guild.id].queue.rArray.shift() : guilds[msg.guild.id].queue.uArray.shift())
-						}, 500)
-					}
-					guilds[msg.guild.id].textChannel.send(`Playing: **${song.title}** as requested by: **${song.requester}**` + "\nGet information about the current song with -**song**!");
-					guilds[msg.guild.id].dispatcher = msg.guild.voiceConnection.playStream(yt(song.url, { audioonly: true, quality: 18 }), { passes: tokens.passes, seek: seek });
+			(function play(song) {
+				console.log("Play function attempting to run")
+				guilds[msg.guild.id].song = song
+				console.log(song);
+				if (song === undefined) {
+					song = (guilds[msg.guild.id].queue.uArray.length === 0 ? guilds[msg.guild.id].queue.rArray[0] : guilds[msg.guild.id].queue.uArray[0])
+					setTimeout(() => {
+						(guilds[msg.guild.id].queue.uArray.length === 0 ? guilds[msg.guild.id].queue.rArray.shift() : guilds[msg.guild.id].queue.uArray.shift())
+					}, 500)
+				}
+				if (guilds[msg.guild.id].firstRun) {
+					console.log("is first run")
+					guilds[msg.guild.id].firstRun = false;
+					guilds[msg.guild.id].queue.rArray.splice(guilds[msg.guild.id].queue.rArray.indexOf(song), 1)
+				}
+				guilds[msg.guild.id].textChannel.send(`Playing: **${song.title}** as requested by: **${song.requester}**` + "\nGet information about the current song with -**song**!");
+				guilds[msg.guild.id].dispatcher = msg.guild.voiceConnection.playStream(yt(song.url, { audioonly: true, quality: 18 }), { passes: tokens.passes });
 
-					guilds[msg.guild.id].playing = true;
+				guilds[msg.guild.id].playing = true;
 
-					guilds[msg.guild.id].collector = new Discord.MessageCollector(guilds[msg.guild.id].textChannel, m => m);
+				guilds[msg.guild.id].collector = new Discord.MessageCollector(guilds[msg.guild.id].textChannel, m => m);
 
-					var voiceChannel = guilds[msg.guild.id].voiceChannel;
+				var voiceChannel = guilds[msg.guild.id].voiceChannel;
 
-					let members = voiceChannel.members.array().length;
+				let members = voiceChannel.members.array().length;
 
-					if (guilds[msg.guild.id].playing) {
-						guilds[msg.guild.id].collector.on('collect', m => {
-							setInterval(function () {
-								if (!guilds[msg.guild.id]) return
-								var voiceChannel = guilds[msg.guild.id].voiceChannel;
-								if (guilds[msg.guild.id] !== undefined) {
-									members = voiceChannel.members.array().length;
-									//console.log('members: ' + members);
-									if (guilds[msg.guild.id].collector.channel !== guilds[msg.guild.id].textChannel) {
-										console.log('-----Setting channel!-----');
-										guilds[msg.guild.id].collector.channel = guilds[msg.guild.id].textChannel;
-										//console.log(guilds[msg.guild.id].collector);
+				if (guilds[msg.guild.id].playing) {
+					guilds[msg.guild.id].collector.on('collect', m => {
+						setInterval(function () {
+							if (!guilds[msg.guild.id]) return
+							var voiceChannel = guilds[msg.guild.id].voiceChannel;
+							if (guilds[msg.guild.id] !== undefined) {
+								members = voiceChannel.members.array().length;
+								//console.log('members: ' + members);
+								if (guilds[msg.guild.id].collector.channel !== guilds[msg.guild.id].textChannel) {
+									console.log('-----Setting channel!-----');
+									guilds[msg.guild.id].collector.channel = guilds[msg.guild.id].textChannel;
+									//console.log(guilds[msg.guild.id].collector);
+								}
+								if (guilds[msg.guild.id].clientUser !== undefined) {
+									if (guilds[msg.guild.id].voiceChannel !== guilds[msg.guild.id].clientUser.voiceChannel) {
+										guilds[msg.guild.id].voiceChannel = guilds[msg.guild.id].clientUser.voiceChannel;
+										writeDB()
 									}
-									if (guilds[msg.guild.id].clientUser !== undefined) {
-										if (guilds[msg.guild.id].voiceChannel !== guilds[msg.guild.id].clientUser.voiceChannel) {
-											guilds[msg.guild.id].voiceChannel = guilds[msg.guild.id].clientUser.voiceChannel;
-											writeDB()
-										}
-									} if (guilds[msg.guild.id].clientUser === undefined) {
-										join(guilds[msg.guild.id].voiceChannel)
-									}
-									//console.log("Dispatcher type: " + typeof (guilds[msg.guild.id].dispatcher))
-									if (guilds[msg.guild.id].dispatcher === undefined) {
-										guilds[msg.guild.id].textChannel.send("There was an issue, so I'm stopping the music! To start it again, join **" + guilds[msg.guild.id].voiceChannel + "** and type " + tokens.prefix + "**start**!")
-										stop(msg)
-										msg.guild.voiceConnection.disconnect()
-										// client.guilds.forEach(guild => {
-										// 	setTimeout(() => {
-										// 		console.log(guild.name + ": Owned by " + guild.owner.displayName)
-										// 		readDB(guild)
-										// 	}, 250)
-										// })
-									}
-									if (!guilds[msg.guild.id].isPaused) {
-										if (members < 2) {
-											guilds[msg.guild.id].dispatcher.pause()
-										} else {
-											guilds[msg.guild.id].dispatcher.resume()
+								} if (guilds[msg.guild.id].clientUser === undefined) {
+									join(guilds[msg.guild.id].voiceChannel)
+								}
+								//console.log("Dispatcher type: " + typeof (guilds[msg.guild.id].dispatcher))
+								// if (guilds[msg.guild.id].dispatcher === undefined) {
+								// 	guilds[msg.guild.id].textChannel.send("There was an issue, so I'm stopping the music! To start it again, join **" + guilds[msg.guild.id].voiceChannel + "** and type " + tokens.prefix + "**start**!")
+								// 	stop(m)
+								// }
+								if (members < 2) return stop(m)
+							}
+						}, 500);
+						if (m.content.toLowerCase().startsWith(tokens.prefix + 'pause')) {
+							if (messageCheck(m, false, true)) {
+								let roles = m.member.roles.array();
+								if (m.author.id === tokens.adminID) {
+									m.channel.send("**CREATOR " + m.author.username.toUpperCase() + " TRUMPS ALL**");
+									setTimeout(() => {
+										m.channel.send('Music Paused! Resume with ' + tokens.prefix + '**resume**').then(() => { guilds[msg.guild.id].dispatcher.pause(); });
+										guilds[m.guild.id].isPaused = true;
+										guilds[m.guild.id].uniquePause = [];
+									}, 250);
+									return;
+								}
+								if (m.author.id === m.guild.ownerID) {
+									m.channel.send('**' + m.author.username.toUpperCase() + " TRUMPS ALL**");
+									setTimeout(() => {
+										m.channel.send('Music Paused! Resume with ' + tokens.prefix + '**resume**').then(() => { guilds[msg.guild.id].dispatcher.pause(); });
+										guilds[m.guild.id].isPaused = true;
+										guilds[m.guild.id].uniquePause = [];
+									}, 250);
+									return;
+								}
+								for (i = 0; i < roles.length; i++) {
+									console.log(roles[i].name)
+									for (j = 0; j < guilds[m.guild.id].moderators.length; j++) {
+										if (roles[i].name === guilds[m.guild.id].moderators[j]) {
+											m.channel.send('**' + m.author.username.toUpperCase() + " TRUMPS ALL**");
+											setTimeout(() => {
+												m.channel.send('Music Paused! Resume with ' + tokens.prefix + '**resume**').then(() => { guilds[msg.guild.id].dispatcher.pause(); });
+												guilds[m.guild.id].isPaused = true;
+												guilds[m.guild.id].uniquePause = [];
+											}, 250);
+											return;
 										}
 									}
 								}
-							}, 500);
-							if (m.content.toLowerCase().startsWith(tokens.prefix + 'pause')) {
-								if (messageCheck(m, false, true)) {
-									let roles = m.member.roles.array();
-									if (m.author.id === tokens.adminID) {
-										m.channel.send("**CREATOR " + m.author.username.toUpperCase() + " TRUMPS ALL**");
-										setTimeout(() => {
-											m.channel.send('Music Paused! Resume with ' + tokens.prefix + '**resume**').then(() => { guilds[msg.guild.id].dispatcher.pause(); });
-											guilds[m.guild.id].isPaused = true;
-											guilds[m.guild.id].uniquePause = [];
-										}, 250);
-										return;
-									}
-									if (m.author.id === m.guild.ownerID) {
-										m.channel.send('**' + m.author.username.toUpperCase() + " TRUMPS ALL**");
-										setTimeout(() => {
-											m.channel.send('Music Paused! Resume with ' + tokens.prefix + '**resume**').then(() => { guilds[msg.guild.id].dispatcher.pause(); });
-											guilds[m.guild.id].isPaused = true;
-											guilds[m.guild.id].uniquePause = [];
-										}, 250);
-										return;
-									}
-									for (i = 0; i < roles.length; i++) {
-										console.log(roles[i].name)
-										for (j = 0; j < guilds[m.guild.id].moderators.length; j++) {
-											if (roles[i].name === guilds[m.guild.id].moderators[j]) {
-												m.channel.send('**' + m.author.username.toUpperCase() + " TRUMPS ALL**");
-												setTimeout(() => {
-													m.channel.send('Music Paused! Resume with ' + tokens.prefix + '**resume**').then(() => { guilds[msg.guild.id].dispatcher.pause(); });
-													guilds[m.guild.id].isPaused = true;
-													guilds[m.guild.id].uniquePause = [];
-												}, 250);
-												return;
-											}
-										}
-									}
-									if (guilds[msg.guild.id].uniquePause.length == 0) {
-										guilds[msg.guild.id].uniquePause.push(m.author.id);
-										m.reply("Vote processed!");
+								if (guilds[msg.guild.id].uniquePause.length == 0) {
+									guilds[msg.guild.id].uniquePause.push(m.author.id);
+									m.reply("Vote processed!");
 
-									} else if (guilds[m.guild.id].uniquePause.length > 0) {
-										if (!guilds[m.guild.id].uniquePause.find((element) => { return element == m.author.id; })) {
-											guilds[m.guild.id].uniquePause.push(m.author.id);
-											m.reply('Vote processed!');
-										} else {
-											m.reply('You have already voted!');
-										}
-									}
-									if ((guilds[m.guild.id].uniquePause.length / (members - 1)) >= .5) {
-										setTimeout(() => {
-											m.channel.send('Music Paused! Resume with ' + tokens.prefix + '**resume**').then(() => { guilds[msg.guild.id].dispatcher.pause(); });
-											guilds[m.guild.id].isPaused = true;
-											guilds[m.guild.id].uniquePause = [];
-										}, 500);
+								} else if (guilds[m.guild.id].uniquePause.length > 0) {
+									if (!guilds[m.guild.id].uniquePause.find((element) => { return element == m.author.id; })) {
+										guilds[m.guild.id].uniquePause.push(m.author.id);
+										m.reply('Vote processed!');
 									} else {
-										setTimeout(() => {
-											m.channel.send((Math.round((members - 1) / 2) - guilds[msg.guild.id].uniquePause.length) + ' more vote' + ((Math.round((members - 1) / 2) - guilds[m.guild.id].uniquePause.length) > 1 ? 's' : '') + ' required! ' + guilds[m.guild.id].uniquePause.length + ' of ' + (members - 1) + ' members have voted!');
-										}, 500);
+										m.reply('You have already voted!');
 									}
 								}
-							} else if (m.content.toLowerCase().startsWith(tokens.prefix + 'resume')) {
-								if (messageCheck(m, false, true)) {
-									let roles = m.member.roles.array();
-									if (m.author.id === tokens.adminID) {
-										m.channel.send("**CREATOR " + m.author.username.toUpperCase() + " TRUMPS ALL**");
-										setTimeout(() => {
-											m.channel.send('Music Resumed! Pause with ' + tokens.prefix + '**pause**').then(() => { guilds[msg.guild.id].dispatcher.resume(); });
-											guilds[m.guild.id].isPaused = false;
-											guilds[m.guild.id].uniqueResume = [];
-										}, 250);
-										return;
-									}
-									if (m.author.id === m.guild.ownerID) {
-										m.channel.send('**' + m.author.username.toUpperCase() + " TRUMPS ALL**");
-										setTimeout(() => {
-											m.channel.send('Music Resumed! Pause with ' + tokens.prefix + '**pause**').then(() => { guilds[msg.guild.id].dispatcher.resume(); });
-											guilds[m.guild.id].isPaused = false;
-											guilds[m.guild.id].uniqueResume = [];
-										}, 250);
-										return;
-									}
-									for (i = 0; i < roles.length; i++) {
-										console.log(roles[i].name)
-										for (j = 0; j < guilds[m.guild.id].moderators.length; j++) {
-											if (roles[i].name === guilds[m.guild.id].moderators[j]) {
-												m.channel.send('**' + m.author.username.toUpperCase() + " TRUMPS ALL**");
-												setTimeout(() => {
-													m.channel.send('Music Resumed! Pause with ' + tokens.prefix + '**pause**').then(() => { guilds[msg.guild.id].dispatcher.resume(); });
-													guilds[m.guild.id].isPaused = false;
-													guilds[m.guild.id].uniqueResume = [];
-												}, 250);
-												return;
-											}
+								if ((guilds[m.guild.id].uniquePause.length / (members - 1)) >= .5) {
+									setTimeout(() => {
+										m.channel.send('Music Paused! Resume with ' + tokens.prefix + '**resume**').then(() => { guilds[msg.guild.id].dispatcher.pause(); });
+										guilds[m.guild.id].isPaused = true;
+										guilds[m.guild.id].uniquePause = [];
+									}, 500);
+								} else {
+									setTimeout(() => {
+										m.channel.send((Math.round((members - 1) / 2) - guilds[msg.guild.id].uniquePause.length) + ' more vote' + ((Math.round((members - 1) / 2) - guilds[m.guild.id].uniquePause.length) > 1 ? 's' : '') + ' required! ' + guilds[m.guild.id].uniquePause.length + ' of ' + (members - 1) + ' members have voted!');
+									}, 500);
+								}
+							}
+						} else if (m.content.toLowerCase().startsWith(tokens.prefix + 'replay')) {
+							if (messageCheck(m, false, true)) {
+								let roles = m.member.roles.array();
+								if (m.author.id === tokens.adminID) {
+									m.channel.send("**CREATOR " + m.author.username.toUpperCase() + " TRUMPS ALL**");
+									setTimeout(() => {
+										m.channel.send('**' + guilds[m.guild.id].song.title + '** set to replay!').then(() => { guilds[m.guild.id].queue.uArray.unshift(guilds[m.guild.id].song) });
+										guilds[m.guild.id].uniqueReplay = [];
+									}, 250);
+									return;
+								}
+								if (m.author.id === m.guild.ownerID) {
+									m.channel.send('**' + m.author.username.toUpperCase() + " TRUMPS ALL**");
+									setTimeout(() => {
+										m.channel.send('**' + guilds[m.guild.id].song.title + '** set to replay!').then(() => { guilds[m.guild.id].queue.uArray.unshift(guilds[m.guild.id].song) });
+										guilds[m.guild.id].uniqueReplay = [];
+									}, 250);
+									return;
+								}
+								for (i = 0; i < roles.length; i++) {
+									console.log(roles[i].name)
+									for (j = 0; j < guilds[m.guild.id].moderators.length; j++) {
+										if (roles[i].name === guilds[m.guild.id].moderators[j]) {
+											m.channel.send('**' + m.author.username.toUpperCase() + " TRUMPS ALL**");
+											setTimeout(() => {
+												m.channel.send('**' + guilds[m.guild.id].song.title + '** set to replay!').then(() => { guilds[m.guild.id].queue.uArray.unshift(guilds[m.guild.id].song) });
+												guilds[m.guild.id].uniqueReplay = [];
+											}, 250);
+											return;
 										}
 									}
-									if (guilds[msg.guild.id].uniqueResume.length == 0) {
-										guilds[msg.guild.id].uniqueResume.push(m.author.id);
-										m.reply("Vote processed!");
-									} else if (guilds[m.guild.id].uniqueResume.length > 0) {
-										if (!guilds[m.guild.id].uniqueResume.find((element) => { return element == m.author.id; })) {
-											guilds[m.guild.id].uniqueResume.push(m.author.id);
-											m.reply('Vote processed!');
-										} else {
-											m.reply('You have already voted!');
-										}
-									}
-									if ((guilds[m.guild.id].uniqueResume.length / (members - 1)) >= .5) {
-										setTimeout(() => {
-											m.channel.send('Music Resumed! Pause with ' + tokens.prefix + '**pause**').then(() => { guilds[msg.guild.id].dispatcher.resume(); });
-											guilds[m.guild.id].isPaused = false;
-											guilds[m.guild.id].uniqueResume = [];
-										}, 500);
+								}
+								if (guilds[msg.guild.id].uniqueReplay.length == 0) {
+									guilds[msg.guild.id].uniqueReplay.push(m.author.id);
+									m.reply("Vote processed!");
+								} else if (guilds[m.guild.id].uniqueResume.length > 0) {
+									if (!guilds[m.guild.id].uniqueReplay.find((element) => { return element == m.author.id; })) {
+										guilds[m.guild.id].uniqueReplay.push(m.author.id);
+										m.reply('Vote processed!');
 									} else {
-										setTimeout(() => {
-											m.channel.send((Math.round((members - 1) / 2) - guilds[msg.guild.id].uniqueResume.length) + ' more vote' + ((Math.round((members - 1) / 2) - guilds[m.guild.id].uniqueResume.length) > 1 ? 's' : '') + ' required! ' + guilds[m.guild.id].uniqueResume.length + ' of ' + (members - 1) + ' members have voted!');
-										}, 500);
+										m.reply('You have already voted!');
 									}
 								}
-							} else if (m.content.toLowerCase().startsWith(tokens.prefix + 'skip')) {
-								if (messageCheck(m, false, true)) {
-									let roles = m.member.roles.array();
-									if (m.author.id === tokens.adminID) {
-										console.log("Admin sent the message!")
-										m.channel.send("**CREATOR " + m.author.username.toUpperCase() + " TRUMPS ALL**");
+								if ((guilds[m.guild.id].uniqueResume.length / (members - 1)) >= .5) {
+									setTimeout(() => {
+										m.channel.send('**' + guilds[m.guild.id].song.title + '** set to replay!').then(() => { guilds[m.guild.id].queue.uArray.unshift(guilds[m.guild.id].song) });
+										guilds[m.guild.id].uniqueReplay = [];
+									}, 500);
+								} else {
+									setTimeout(() => {
+										m.channel.send((Math.round((members - 1) / 2) - guilds[msg.guild.id].uniqueResume.length) + ' more vote' + ((Math.round((members - 1) / 2) - guilds[m.guild.id].uniqueResume.length) > 1 ? 's' : '') + ' required! ' + guilds[m.guild.id].uniqueResume.length + ' of ' + (members - 1) + ' members have voted!');
+									}, 500);
+								}
+							}
+						} else if (m.content.toLowerCase().startsWith(tokens.prefix + 'resume')) {
+							if (messageCheck(m, false, true)) {
+								let roles = m.member.roles.array();
+								if (m.author.id === tokens.adminID) {
+									m.channel.send("**CREATOR " + m.author.username.toUpperCase() + " TRUMPS ALL**");
+									setTimeout(() => {
+										m.channel.send('Music Resumed! Pause with ' + tokens.prefix + '**pause**').then(() => { guilds[msg.guild.id].dispatcher.resume(); });
+										guilds[m.guild.id].isPaused = false;
+										guilds[m.guild.id].uniqueResume = [];
+									}, 250);
+									return;
+								}
+								if (m.author.id === m.guild.ownerID) {
+									m.channel.send('**' + m.author.username.toUpperCase() + " TRUMPS ALL**");
+									setTimeout(() => {
+										m.channel.send('Music Resumed! Pause with ' + tokens.prefix + '**pause**').then(() => { guilds[msg.guild.id].dispatcher.resume(); });
+										guilds[m.guild.id].isPaused = false;
+										guilds[m.guild.id].uniqueResume = [];
+									}, 250);
+									return;
+								}
+								for (i = 0; i < roles.length; i++) {
+									console.log(roles[i].name)
+									for (j = 0; j < guilds[m.guild.id].moderators.length; j++) {
+										if (roles[i].name === guilds[m.guild.id].moderators[j]) {
+											m.channel.send('**' + m.author.username.toUpperCase() + " TRUMPS ALL**");
+											setTimeout(() => {
+												m.channel.send('Music Resumed! Pause with ' + tokens.prefix + '**pause**').then(() => { guilds[msg.guild.id].dispatcher.resume(); });
+												guilds[m.guild.id].isPaused = false;
+												guilds[m.guild.id].uniqueResume = [];
+											}, 250);
+											return;
+										}
+									}
+								}
+								if (guilds[msg.guild.id].uniqueResume.length == 0) {
+									guilds[msg.guild.id].uniqueResume.push(m.author.id);
+									m.reply("Vote processed!");
+								} else if (guilds[m.guild.id].uniqueResume.length > 0) {
+									if (!guilds[m.guild.id].uniqueResume.find((element) => { return element == m.author.id; })) {
+										guilds[m.guild.id].uniqueResume.push(m.author.id);
+										m.reply('Vote processed!');
+									} else {
+										m.reply('You have already voted!');
+									}
+								}
+								if ((guilds[m.guild.id].uniqueResume.length / (members - 1)) >= .5) {
+									setTimeout(() => {
+										m.channel.send('Music Resumed! Pause with ' + tokens.prefix + '**pause**').then(() => { guilds[msg.guild.id].dispatcher.resume(); });
+										guilds[m.guild.id].isPaused = false;
+										guilds[m.guild.id].uniqueResume = [];
+									}, 500);
+								} else {
+									setTimeout(() => {
+										m.channel.send((Math.round((members - 1) / 2) - guilds[msg.guild.id].uniqueResume.length) + ' more vote' + ((Math.round((members - 1) / 2) - guilds[m.guild.id].uniqueResume.length) > 1 ? 's' : '') + ' required! ' + guilds[m.guild.id].uniqueResume.length + ' of ' + (members - 1) + ' members have voted!');
+									}, 500);
+								}
+							}
+						} else if (m.content.toLowerCase().startsWith(tokens.prefix + 'skip')) {
+							if (messageCheck(m, false, true)) {
+								let roles = m.member.roles.array();
+								if (m.author.id === tokens.adminID) {
+									console.log("Admin sent the message!")
+									m.channel.send("**CREATOR " + m.author.username.toUpperCase() + " TRUMPS ALL**");
+									m.channel.send('Song skipped!')
+									guilds[msg.guild.id].dispatcher.end()
+									return;
+								}
+								else if (m.author.id === m.guild.ownerID) {
+									console.log("Owner sent the message!")
+									m.channel.send('**' + m.author.username.toUpperCase() + " TRUMPS ALL**");
+									setTimeout(() => {
 										m.channel.send('Song skipped!')
 										guilds[msg.guild.id].dispatcher.end()
-										return;
-									}
-									else if (m.author.id === m.guild.ownerID) {
-										console.log("Owner sent the message!")
-										m.channel.send('**' + m.author.username.toUpperCase() + " TRUMPS ALL**");
-										setTimeout(() => {
-											m.channel.send('Song skipped!')
-											guilds[msg.guild.id].dispatcher.end()
-										}, 250);
-										return;
-									}
-									for (i = 0; i < roles.length; i++) {
-										console.log(roles[i].name)
-										for (j = 0; j < guilds[m.guild.id].moderators.length; j++) {
-											if (roles[i].name === guilds[m.guild.id].moderators[j]) {
-												console.log("Moderator sent the message!")
-												m.channel.send('**' + m.author.username.toUpperCase() + " TRUMPS ALL**");
-												setTimeout(() => {
-													m.channel.send('Song skipped!')
-													guilds[msg.guild.id].dispatcher.end()
-												}, 250);
-												return;
-											}
+									}, 250);
+									return;
+								}
+								for (i = 0; i < roles.length; i++) {
+									console.log(roles[i].name)
+									for (j = 0; j < guilds[m.guild.id].moderators.length; j++) {
+										if (roles[i].name === guilds[m.guild.id].moderators[j]) {
+											console.log("Moderator sent the message!")
+											m.channel.send('**' + m.author.username.toUpperCase() + " TRUMPS ALL**");
+											setTimeout(() => {
+												m.channel.send('Song skipped!')
+												guilds[msg.guild.id].dispatcher.end()
+											}, 250);
+											return;
 										}
 									}
-									if (guilds[msg.guild.id].uniqueSkips.length == 0) {
-										guilds[msg.guild.id].uniqueSkips.push(m.author.id);
+								}
+								if (guilds[msg.guild.id].uniqueSkips.length == 0) {
+									guilds[msg.guild.id].uniqueSkips.push(m.author.id);
+									console.log("Processing skip vote for " + m.author.username)
+									m.reply("Vote processed!");
+
+								} else if (guilds[m.guild.id].uniqueSkips.length > 0) {
+									if (!guilds[m.guild.id].uniqueSkips.find((element) => { return element == m.author.id; })) {
+										guilds[m.guild.id].uniqueSkips.push(m.author.id);
 										console.log("Processing skip vote for " + m.author.username)
-										m.reply("Vote processed!");
-
-									} else if (guilds[m.guild.id].uniqueSkips.length > 0) {
-										if (!guilds[m.guild.id].uniqueSkips.find((element) => { return element == m.author.id; })) {
-											guilds[m.guild.id].uniqueSkips.push(m.author.id);
-											console.log("Processing skip vote for " + m.author.username)
-											m.reply('Vote processed!');
-										} else {
-											m.reply('You have already voted!');
-										}
-									}
-									console.log(guilds[m.guild.id].uniqueSkips.length);
-									if ((guilds[m.guild.id].uniqueSkips.length / (members - 1)) >= .5) {
-										setTimeout(() => {
-											console.log("Voted to skip!")
-											m.channel.send('Song skipped!')
-											return guilds[msg.guild.id].dispatcher.end()
-										}, 500);
+										m.reply('Vote processed!');
 									} else {
-										setTimeout(() => {
-											m.channel.send((Math.round((members - 1) / 2) - guilds[msg.guild.id].uniqueSkips.length) + ' more vote' + ((Math.round((members - 1) / 2) - guilds[m.guild.id].uniqueSkips.length) > 1 ? 's' : '') + ' required! ' + guilds[m.guild.id].uniqueSkips.length + ' of ' + (members - 1) + ' members have voted!');
-										}, 500);
+										m.reply('You have already voted!');
 									}
 								}
-							} else if (m.content.toLowerCase().startsWith(tokens.prefix + 'song')) {
-								if (messageCheck(m, true)) {
-									m.reply("Getting information for current song!")
-									yt.getInfo(song.url, (err, info) => {
-										if (err) return m.channel.send("I couldn't get the video information :(");
-										m.channel.send('Current Song: **' + info.title + '**\nRequested By: **' + song.requester + '**\nSong Time:  **' + (guilds[m.guild.id].dispatcher.time / 1000).toString().toHHMMSS() + '** / **' + info.length_seconds.toHHMMSS() + '**\nTime Remaining:  **' + (((info.length_seconds * 1000) - guilds[m.guild.id].dispatcher.time) / 1000).toString().toHHMMSS() + '**\nWatch Link: ' + song.url);
-									});
+								console.log(guilds[m.guild.id].uniqueSkips.length);
+								if ((guilds[m.guild.id].uniqueSkips.length / (members - 1)) >= .5) {
+									setTimeout(() => {
+										console.log("Voted to skip!")
+										m.channel.send('Song skipped!')
+										return guilds[msg.guild.id].dispatcher.end()
+									}, 500);
+								} else {
+									setTimeout(() => {
+										m.channel.send((Math.round((members - 1) / 2) - guilds[msg.guild.id].uniqueSkips.length) + ' more vote' + ((Math.round((members - 1) / 2) - guilds[m.guild.id].uniqueSkips.length) > 1 ? 's' : '') + ' required! ' + guilds[m.guild.id].uniqueSkips.length + ' of ' + (members - 1) + ' members have voted!');
+									}, 500);
 								}
 							}
-						});
-					}
-
-					guilds[msg.guild.id].line += 5
-
-					guilds[msg.guild.id].dispatcher.on('end', () => {
-						console.log('Playing next song')
-						if (guilds[msg.guild.id].playing) {
-							if (guilds[msg.guild.id].line < lines.length) {
-								for (let i = guilds[msg.guild.id].line; i < guilds[msg.guild.id].line + 5; i++) {
-									console.log(i)
-									yt.getInfo(lines[i], (err, info) => {
-										if (err) {
-											console.log('Invalid YouTube Link: ' + err);
-										} else {
-											guilds[msg.guild.id].queue.rArray.push({ url: lines[i], title: info.title, requester: 'Radio Jesus' });
-											console.log(msg.guild.name + "'s Radio index: " + i + `\nadded ${info.title} to ${msg.guild.name}'s queue\n`);
-										}
-									});
-								}
+						} else if (m.content.toLowerCase().startsWith(tokens.prefix + 'song')) {
+							if (messageCheck(m, true)) {
+								m.reply("Getting information for current song!")
+								yt.getInfo(song.url, (err, info) => {
+									if (err) return m.channel.send("I couldn't get the video information :(");
+									m.channel.send('Current Song: **' + info.title + '**\nRequested By: **' + song.requester + '**\nSong Time:  **' + (guilds[m.guild.id].dispatcher.time / 1000).toString().toHHMMSS() + '** / **' + info.length_seconds.toHHMMSS() + '**\nTime Remaining:  **' + (((info.length_seconds * 1000) - guilds[m.guild.id].dispatcher.time) / 1000).toString().toHHMMSS() + '**\nWatch Link: ' + song.url);
+								});
 							}
-							guilds[msg.guild.id].collector.stop();
-							guilds[msg.guild.id].uniqueSkips = [];
-							guilds[msg.guild.id].uniquePause = [];
-							guilds[msg.guild.id].uniqueResume = [];
-							guilds[msg.guild.id].line += 5
-							setTimeout(() => {
-								play((guilds[msg.guild.id].queue.uArray.length === 0 ? guilds[msg.guild.id].queue.rArray.shift() : guilds[msg.guild.id].queue.uArray.shift()))
-							}, 500)
 						}
 					});
-					guilds[msg.guild.id].dispatcher.on('error', (err) => {
-						console.log('THERE WAS AN ERROR DAD PLS');
-						return console.log('ERROR: ' + err).then(() => {
-							guilds[msg.guild.id].collector.stop();
-							play(guilds[msg.guild.id].queue.uArray.length === 0 ? guilds[msg.guild.id].queue.rArray.shift() : guilds[msg.guild.id].queue.uArray.shift());
-						});
+				}
+
+				guilds[msg.guild.id].line += 5
+
+				guilds[msg.guild.id].dispatcher.on('end', () => {
+					console.log('Playing next song')
+					if (guilds[msg.guild.id].playing) {
+						if (guilds[msg.guild.id].line < lines.length) {
+							for (let i = guilds[msg.guild.id].line; i < guilds[msg.guild.id].line + 5; i++) {
+								console.log(i)
+								yt.getInfo(lines[i], (err, info) => {
+									if (err) {
+										console.log('Invalid YouTube Link: ' + err);
+									} else {
+										guilds[msg.guild.id].queue.rArray.push({ url: lines[i], title: info.title, requester: 'Radio Jesus' });
+										console.log(msg.guild.name + "'s Radio index: " + i + `\nadded ${info.title} to ${msg.guild.name}'s queue\n`);
+									}
+								});
+							}
+						}
+						guilds[msg.guild.id].collector.stop();
+						guilds[msg.guild.id].uniqueSkips = [];
+						guilds[msg.guild.id].uniquePause = [];
+						guilds[msg.guild.id].uniqueResume = [];
+						guilds[msg.guild.id].line += 5
+						setTimeout(() => {
+							play((guilds[msg.guild.id].queue.uArray.length === 0 ? guilds[msg.guild.id].queue.rArray.shift() : guilds[msg.guild.id].queue.uArray.shift()))
+						}, 250)
+					}
+				});
+				guilds[msg.guild.id].dispatcher.on('error', (err) => {
+					console.log('THERE WAS AN ERROR DAD PLS');
+					return console.log('ERROR: ' + err).then(() => {
+						guilds[msg.guild.id].collector.stop();
+						play(guilds[msg.guild.id].queue.uArray.length === 0 ? guilds[msg.guild.id].queue.rArray.shift() : guilds[msg.guild.id].queue.uArray.shift());
 					});
-				})(guilds[msg.guild.id].queue.uArray.length === 0 ? guilds[msg.guild.id].queue.rArray[0] : guilds[msg.guild.id].queue.uArray[0]);
+				});
+			})(guilds[msg.guild.id].queue.uArray.length === 0 ? guilds[msg.guild.id].queue.rArray[0] : guilds[msg.guild.id].queue.uArray[0]);
 		}
 	},
 	'list': (msg) => {
@@ -363,6 +412,7 @@ const commands = {
 					value: tokens.prefix + '**pause**     : Pauses the music. (requires majority)\n' +
 					tokens.prefix + '**resume**    : Resumes the music. (requires majority)\n' +
 					tokens.prefix + '**skip**      : Skips the playing song. (requires majority)\n' +
+					tokens.prefix + '**replay**    : Sets current song to replay (requires majority)\n' +
 					tokens.prefix + '**song**      : Shows information about the current song.'
 				},
 				{
@@ -987,6 +1037,7 @@ function init(guild) {
 	guilds[guild.id].uniqueSkips = [];
 	guilds[guild.id].uniquePause = [];
 	guilds[guild.id].uniqueResume = [];
+	guilds[guild.id].firstRun = true;
 	guilds[guild.id].line = 0;
 	guilds[guild.id].isPaused = false;
 	guilds[guild.id].firstRun = true;
@@ -1085,10 +1136,12 @@ function readDB(guild) {
 						guilds[guild.id].uniqueSkips = [];
 						guilds[guild.id].uniquePause = [];
 						guilds[guild.id].uniqueResume = [];
-						guilds[guild.id].uniqueRemove = []
+						guilds[guild.id].uniqueRemove = [];
+						guilds[guild.id].uniqueReplay = [];
 						guilds[guild.id].line = 0;
 						guilds[guild.id].isPaused = false;
 						guilds[guild.id].playing = false;
+						guilds[guild.id].firstRun = true;
 						guilds[guild.id].msgLimiter = []
 						guilds[guild.id].collector = new Discord.MessageCollector(guilds[guild.id].textChannel, m => m);
 
@@ -1109,13 +1162,14 @@ function readDB(guild) {
 						guilds[guild.id].line += 5
 
 						setTimeout(() => {
+							console.log(guilds[guild.id].queue.rArray)
 							var lastMessageID = guilds[guild.id].textChannel.lastMessageID
 							//console.log(lastMessageID)
 							guilds[guild.id].textChannel.fetchMessage(lastMessageID).then(msg => {
 								join(guilds[guild.id].voiceChannel)
 								setTimeout(() => {
 									commands.start(msg)
-								}, 1000)
+								}, 2000)
 							})
 						}, 3000)
 					}
@@ -1239,6 +1293,7 @@ function stop(msg) {
 	guilds[msg.guild.id].uniqueSkips = [];
 	guilds[msg.guild.id].uniquePause = [];
 	guilds[msg.guild.id].uniqueResume = [];
+	guilds[msg.guild.id].uniqueReplay = [];
 	guilds[msg.guild.id].isPaused = false;
 	guilds[msg.guild.id].firstRun = true;
 	delete guilds[msg.guild.id].dispatcher;
@@ -1341,7 +1396,7 @@ client.on('message', msg => {
 		//}
 	} else {
 		console.log("Message doesn't have a property, is it a collector command?")
-		if (msg.content.toLowerCase() !== '-song' && msg.content.toLowerCase() !== '-pause' && msg.content.toLowerCase() !== '-resume' && msg.content.toLowerCase() !== '-skip') {
+		if (msg.content.toLowerCase() !== '-song' && msg.content.toLowerCase() !== '-pause' && msg.content.toLowerCase() !== '-resume' && msg.content.toLowerCase() !== '-skip' && msg.content.toLowerCase() !== '-replay') {
 			msg.channel.send("I don't have a command for that! Let me show you what I can do.")
 			setTimeout(() => {
 				commands.help(msg)
@@ -1397,8 +1452,12 @@ process.on('uncaughtException', (err) => {
 		console.log(err.stack)
 	} else {
 		// Normal error handling
-		console.log(err)
-		console.log(err.stack)
+		fs.appendFile('log.txt', err, (err) => {
+			if (err) console.log("I had an error");
+			else console.log("I successfully wrote to the log file!");
+		})
+		// console.log(err)
+		// console.log(err.stack)
 		//process.exit(0)
 	}
 })
