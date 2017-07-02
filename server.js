@@ -64,10 +64,10 @@ const commands = {
 
 				if (guilds[msg.guild.id].playing) {
 					guilds[msg.guild.id].collector.on('collect', m => {
-						setInterval(function () {
+						var playCheck = setInterval(function () {
 							if (!guilds[msg.guild.id]) return
 							var voiceChannel = guilds[msg.guild.id].voiceChannel;
-							if (guilds[msg.guild.id] !== undefined) {
+							if (guilds[msg.guild.id] !== undefined && guilds[msg.guild.id].playing) {
 								members = voiceChannel.members.array().length;
 								//console.log('members: ' + members);
 								if (guilds[msg.guild.id].collector.channel !== guilds[msg.guild.id].textChannel) {
@@ -76,19 +76,21 @@ const commands = {
 									//console.log(guilds[msg.guild.id].collector);
 								}
 								if (guilds[msg.guild.id].clientUser !== undefined) {
-									if (guilds[msg.guild.id].voiceChannel !== guilds[msg.guild.id].clientUser.voiceChannel) {
+									if (guilds[msg.guild.id].voiceChannel !== guilds[msg.guild.id].clientUser.voiceChannel && guilds[msg.guild.id].clientUser.voiceChannel !== undefined) {
 										guilds[msg.guild.id].voiceChannel = guilds[msg.guild.id].clientUser.voiceChannel;
 										writeDB()
 									}
 								} if (guilds[msg.guild.id].clientUser === undefined) {
 									join(guilds[msg.guild.id].voiceChannel)
 								}
-								//console.log("Dispatcher type: " + typeof (guilds[msg.guild.id].dispatcher))
-								// if (guilds[msg.guild.id].dispatcher === undefined) {
-								// 	guilds[msg.guild.id].textChannel.send("There was an issue, so I'm stopping the music! To start it again, join **" + guilds[msg.guild.id].voiceChannel + "** and type " + tokens.prefix + "**start**!")
-								// 	stop(m)
-								// }
-								if (members < 2) return stop(m)
+								if (members < 2) {
+									guilds[msg.guild.id].textChannel.send("Nobody is listening, so I am stopping the music! To continue listening, join **" + guilds[msg.guild.id].voiceChannel.name + "** and type **" + tokens.prefix + "start**")
+									stop(msg)
+									setTimeout(() => {
+										msg.guild.voiceConnection.disconnect()
+										clearInterval(playCheck)
+									}, 250)
+								}
 							}
 						}, 500);
 						if (m.content.toLowerCase().startsWith(tokens.prefix + 'pause')) {
@@ -337,8 +339,8 @@ const commands = {
 				guilds[msg.guild.id].line += 5
 
 				guilds[msg.guild.id].dispatcher.on('end', () => {
-					console.log('Playing next song')
 					if (guilds[msg.guild.id].playing) {
+						console.log('Playing next song')
 						if (guilds[msg.guild.id].line < lines.length) {
 							for (let i = guilds[msg.guild.id].line; i < guilds[msg.guild.id].line + 5; i++) {
 								console.log(i)
@@ -461,10 +463,12 @@ const commands = {
 		if (messageCheck(msg, true)) {
 			let roles = msg.member.roles.array();
 			if (msg.author.id == msg.guild.ownerID || msg.author.id == tokens.adminID) {
-				msg.reply("Yes sir! To start the music again, join **" + guilds[msg.guild.id].voiceChannel.name + "**  and type " + tokens.prefix + "**start**!")
+				msg.reply("Okay! To start the music again, join **" + guilds[msg.guild.id].voiceChannel.name + "**  and type " + tokens.prefix + "**start**!")
 				console.log("Stopping!")
 				stop(msg);
-				msg.guild.voiceConnection.disconnect();
+				setTimeout(() => {
+					msg.guild.voiceConnection.disconnect();
+				}, 250)
 				return
 			}
 			for (i = 0; i < roles.length; i++) {
@@ -474,7 +478,9 @@ const commands = {
 						msg.reply("Gotcha! To start it again, join **" + guilds[msg.guild.id].voiceChannel.name + "** and type " + tokens.prefix + "**start**!")
 						console.log("Stopping!")
 						stop(msg);
-						msg.guild.voiceConnection.disconnect();
+						setTimeout(() => {
+							msg.guild.voiceConnection.disconnect();
+						}, 250)
 						return
 					}
 				}
