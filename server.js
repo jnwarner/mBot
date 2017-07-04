@@ -84,7 +84,7 @@ const commands = {
 									join(guilds[msg.guild.id].voiceChannel)
 								}
 								if (members < 2) {
-									guilds[msg.guild.id].textChannel.send("Nobody is listening, so I am stopping the music! To continue listening, join **" + guilds[msg.guild.id].voiceChannel.name + "** and type **" + tokens.prefix + "start**")
+									guilds[msg.guild.id].textChannel.send("Nobody is listening, so I am stopping the music! To continue listening, join **" + guilds[msg.guild.id].voiceChannel.name + "** and type **" + tokens.prefix + "start**!")
 									stop(msg)
 									setTimeout(() => {
 										msg.guild.voiceConnection.disconnect()
@@ -380,14 +380,14 @@ const commands = {
 			let tosend = [];
 			if (guilds[msg.guild.id].queue.uArray.length !== 0) {
 				tosend.push(`#User Queue:\n`)
-				guilds[msg.guild.id].queue.uArray.forEach((song, i) => { tosend.push(`${i + 1}. ${song.title.length > 35 ? song.title.substring(0, 35) + '...' : song.title}\n${(i + 1) > 9 ? ' ' : ''}   Requested by: ${song.requester.length > 20 ? song.requester.substring(0, 20) + '...' : song.requester}\n`); });
+				guilds[msg.guild.id].queue.uArray.forEach((song, i) => { tosend.push(`${i + 1}. ${song.title.length > 50 ? song.title.substring(0, 50) + '...' : song.title}\n${(i + 1) > 9 ? ' ' : ''}   Requested by: ${song.requester.length > 35 ? song.requester.substring(0, 35) + '...' : song.requester}\n`); });
 				tosend.push(`#Radio Queue:\n`)
-				guilds[msg.guild.id].queue.rArray.forEach((song, i) => { tosend.push(`${(guilds[msg.guild.id].queue.uArray.length) + i + 1}. ${song.title.length > 35 ? song.title.substring(0, 35) + '...' : song.title}\n${((guilds[msg.guild.id].queue.uArray.length) + i + 1) > 9 ? ' ' : ''}   Requested by: ${song.requester.length > 20 ? song.requester.substring(0, 20) + '...' : song.requester}\n`); });
+				guilds[msg.guild.id].queue.rArray.forEach((song, i) => { tosend.push(`${(guilds[msg.guild.id].queue.uArray.length) + i + 1}. ${song.title.length > 50 ? song.title.substring(0, 50) + '...' : song.title}\n${((guilds[msg.guild.id].queue.uArray.length) + i + 1) > 9 ? ' ' : ''}   Requested by: ${song.requester.length > 35 ? song.requester.substring(0, 35) + '...' : song.requester}\n`); });
 
 				msg.channel.send(`__**${msg.guild.name}'s Music Queue:**__ Currently **${tosend.length}** songs queued ${(tosend.length > 15 ? '*[Only next 15 shown]*' : '')}\n\`\`\`markdown\n${tosend.slice(0, 17).join('\n')}\`\`\``);
 			} else {
 				tosend.push(`#Radio Queue:\n`)
-				guilds[msg.guild.id].queue.rArray.forEach((song, i) => { tosend.push(`${i + 1}. ${song.title.length > 35 ? song.title.substring(0, 35) + '...' : song.title}\n${(i + 1) > 9 ? ' ' : ''}   Requested by: ${song.requester.length > 20 ? song.requester.substring(0, 20) + '...' : song.requester}\n`); });
+				guilds[msg.guild.id].queue.rArray.forEach((song, i) => { tosend.push(`${i + 1}. ${song.title.length > 50 ? song.title.substring(0, 50) + '...' : song.title}\n${(i + 1) > 9 ? ' ' : ''}   Requested by: ${song.requester.length > 35 ? song.requester.substring(0, 35) + '...' : song.requester}\n`); });
 
 				msg.channel.send(`__**${msg.guild.name}'s Music Queue:**__ Currently **${tosend.length - 1}** songs queued ${(tosend.length > 15 ? '***[Only next 15 shown]***' : '')}\n\`\`\`markdown\n${tosend.slice(0, 16).join('\n')}\`\`\``);
 			}
@@ -436,6 +436,7 @@ const commands = {
 					name: '**Owner and Moderator Commands**',
 					value: tokens.prefix + '**shuffle**   : Shuffles the user queue.\n' +
 					tokens.prefix + '**clear**     : Clears the user queue.\n' +
+					tokens.prefix + '**reset**     : Clears entire queue, and starts from radio queue.\n' +
 					tokens.prefix + '**remove**    : Removes song from queue.\n' +
 					tokens.prefix + '**bump**      : Bumps song to front of user queue.\n' +
 					tokens.prefix + '**pause**     : Bypass vote and pauses music.\n' +
@@ -496,38 +497,49 @@ const commands = {
 			msg.channel.send("Attempting to get playlist content!")
 			var playlist = []
 
-			if ((term.startsWith('https://') || term.startsWith('www.')) && term.includes('list')) {
-				term = term.substring(term.lastIndexOf('=') + 1)
-			}
-
-			setTimeout(() => {
-
-				getPlist(term, null, playlist, function (playlist) {
-					if (playlist === null) return msg.channel.send("Invalid Playlist ID! I need either a link with the list parameter included or a valid playlist id!```https://youtube.com/playlist?list=[Playlist ID]```")
-					playlist = shuffle(playlist)
-					msg.channel.send("Got it! Adding **" + Object.keys(playlist).length + "** videos from **" + playlist[0].snippet.channelTitle + "**'s playlist!")
-					for (i = (Object.keys(playlist).length - 1); i >= 0; i--) {
-						(function (i) {
-							var tmr = setTimeout(function () {
-								console.log(i)
-								if (playlist[i] !== undefined) {
-									console.log(playlist[i].snippet.resourceId.videoId)
-
-									yt.getInfo(('https://youtu.be/' + playlist[i].snippet.resourceId.videoId), (err, info) => {
-										if (err) console.log('Invalid YouTube Link: ' + err);
-										else {
-											if (info.livestream === '1') return msg.channel.send('This is a livestream!');
-											guilds[msg.guild.id].queue.rArray.unshift({ url: ('https://youtu.be/' + playlist[i].snippet.resourceId.videoId), title: info.title, requester: (msg.author.username + " (" + playlist[0].snippet.channelTitle + "'s Playlist)") });
-										}
-									});
-								} else {
-									console.log(playlist[i])
-								}
-							}, 750 * i)
-						})(i);
+			yt_client.search(term, 2, function (error, result) {
+				if (error) {
+					console.log("Nope!")
+					console.log(error)
+				} else {
+					console.log("Success!")
+					for (i = 0; i < result.items.length; i++) {
+						if (result.items[i].id.playlistId) {
+							console.log(result.items[i])
+							term = result.items[i].id.playlistId
+							break
+						}
 					}
-				})
-			}, 250)
+					setTimeout(() => {
+
+						getPlist(term, null, playlist, function (playlist) {
+							if (playlist === null) return msg.channel.send("Invalid playlist! If using a search term, please include the word playlist at the end. Otherwise, try using the full link/ID!")
+							playlist = shuffle(playlist)
+							msg.channel.send("Got it! Adding **" + Object.keys(playlist).length + "** videos from **" + playlist[0].snippet.channelTitle + "**'s playlist!")
+							for (i = (Object.keys(playlist).length - 1); i >= 0; i--) {
+								(function (i) {
+									var tmr = setTimeout(function () {
+										console.log(i)
+										if (playlist[i] !== undefined) {
+											console.log(playlist[i].snippet.resourceId.videoId)
+
+											yt.getInfo(('https://youtu.be/' + playlist[i].snippet.resourceId.videoId), (err, info) => {
+												if (err) console.log('Invalid YouTube Link: ' + err);
+												else {
+													if (info.livestream === '1') return msg.channel.send('This is a livestream!');
+													guilds[msg.guild.id].queue.rArray.unshift({ url: ('https://youtu.be/' + playlist[i].snippet.resourceId.videoId), title: info.title, requester: (msg.author.username + " (" + playlist[0].snippet.channelTitle + "'s Playlist)") });
+												}
+											});
+										} else {
+											console.log(playlist[i])
+										}
+									}, 750 * i)
+								})(i);
+							}
+						})
+					}, 250)
+				}
+			});
 		}
 	},
 	'search': (msg) => {
@@ -651,6 +663,62 @@ const commands = {
 						})
 					}
 				})
+			}
+		}
+	},
+	'reset': (msg) => {
+		if (messageCheck(msg, true)) {
+			let roles = msg.member.roles.array();
+			if (msg.author.id == msg.guild.ownerID || msg.author.id == tokens.adminID) {
+				msg.reply("Resetting your entire music queue!")
+				console.log("Resetting!")
+				guilds[msg.guild.id].line = 0
+				guilds[msg.guild.id].queue.uArray = []
+				guilds[msg.guild.id].queue.rArray = []
+				setTimeout(() => {
+					if (guilds[msg.guild.id].line < lines.length) {
+						for (let i = guilds[msg.guild.id].line; i < guilds[msg.guild.id].line + 5; i++) {
+							console.log(i)
+							yt.getInfo(lines[i], (err, info) => {
+								if (err) {
+									console.log('Invalid YouTube Link: ' + err);
+								} else {
+									guilds[msg.guild.id].queue.rArray.push({ url: lines[i], title: info.title, requester: 'Radio Jesus' });
+									console.log(msg.guild.name + "'s Radio index: " + i + `\nadded ${info.title} to ${msg.guild.name}'s queue\n`);
+								}
+							});
+						}
+					}
+				}, 250)
+				return
+			}
+			for (i = 0; i < roles.length; i++) {
+				console.log(roles[i].name)
+				for (j = 0; j < guilds[msg.guild.id].moderators.length; j++) {
+					if (roles[i].name === guilds[msg.guild.id].moderators[j]) {
+						msg.reply("Resetting your entire music queue!")
+						console.log("Resetting!")
+						guilds[msg.guild.id].line = 0
+						guilds[msg.guild.id].queue.uArray = []
+						guilds[msg.guild.id].queue.rArray = []
+						setTimeout(() => {
+							if (guilds[msg.guild.id].line < lines.length) {
+								for (let i = guilds[msg.guild.id].line; i < guilds[msg.guild.id].line + 5; i++) {
+									console.log(i)
+									yt.getInfo(lines[i], (err, info) => {
+										if (err) {
+											console.log('Invalid YouTube Link: ' + err);
+										} else {
+											guilds[msg.guild.id].queue.rArray.push({ url: lines[i], title: info.title, requester: 'Radio Jesus' });
+											console.log(msg.guild.name + "'s Radio index: " + i + `\nadded ${info.title} to ${msg.guild.name}'s queue\n`);
+										}
+									});
+								}
+							}
+						}, 250)
+						return
+					}
+				}
 			}
 		}
 	},
@@ -957,7 +1025,9 @@ const commands = {
 							console.log(toSet[i].name + ' ' + toSet[i].id)
 							msg.reply("Okay! **" + toSet[i].name + "** set as music bot voice channel! Please issue further commands while in this channel!");
 							guilds[msg.guild.id].voiceChannel = toSet[i];
-							join(guilds[msg.guild.id].voiceChannel)
+							if (guilds[msg.guild.id].playing) {
+								join(guilds[msg.guild.id].voiceChannel)
+							}
 							writeDB()
 						}
 					}
@@ -1151,8 +1221,6 @@ function readDB(guild) {
 						guilds[guild.id].msgLimiter = []
 						guilds[guild.id].collector = new Discord.MessageCollector(guilds[guild.id].textChannel, m => m);
 
-						guilds[guild.id].textChannel.send("Oops, something went wrong! I'll attempt to restart music automatically in the voice channel **" + guilds[guild.id].voiceChannel.name + "**!")
-
 						for (let i = guilds[guild.id].line; i < guilds[guild.id].line + 5; i++) {
 							console.log(i)
 							yt.getInfo(lines[i], (err, info) => {
@@ -1167,17 +1235,25 @@ function readDB(guild) {
 
 						guilds[guild.id].line += 5
 
-						setTimeout(() => {
-							console.log(guilds[guild.id].queue.rArray)
-							var lastMessageID = guilds[guild.id].textChannel.lastMessageID
-							//console.log(lastMessageID)
-							guilds[guild.id].textChannel.fetchMessage(lastMessageID).then(msg => {
-								join(guilds[guild.id].voiceChannel)
-								setTimeout(() => {
-									commands.start(msg)
-								}, 2000)
-							})
-						}, 3000)
+						console.log("Users in " + guild.name + "'s voice channel: " + guilds[guild.id].voiceChannel.members.array().length)
+
+						if (guilds[guild.id].voiceChannel.members.array().length > 0) {
+							guilds[guild.id].textChannel.send("I rebooted! I will automatically attempt to start music again in **" + guilds[guild.id].voiceChannel.name + "**!")
+
+							setTimeout(() => {
+								console.log(guilds[guild.id].queue.rArray)
+								var lastMessageID = guilds[guild.id].textChannel.lastMessageID
+								//console.log(lastMessageID)
+								guilds[guild.id].textChannel.fetchMessage(lastMessageID).then(msg => {
+									join(guilds[guild.id].voiceChannel)
+									setTimeout(() => {
+										commands.start(msg)
+									}, 2000)
+								})
+							}, 3000)
+						} else {
+							guilds[guild.id].textChannel.send("I rebooted, but the voice channel is empty! To start the music, join **" + guilds[guild.id].voiceChannel.name + "** and type **" + tokens.prefix + "start**!")
+						}
 					}
 				}
 			} else console.log("nothing to parse")
@@ -1351,8 +1427,8 @@ String.prototype.toHHMMSS = function () {
 	if (hours < 10) { hours = "0" + hours; }
 	if (minutes < 10) { minutes = "0" + minutes; }
 	if (seconds < 10) { seconds = "0" + seconds; }
-	console.log(typeof (hours))
-	console.log(hours)
+	//console.log(typeof (hours))
+	//console.log(hours)
 	if (hours == '00') {
 		return minutes + ':' + seconds;
 	} else {
@@ -1413,7 +1489,7 @@ client.on('message', msg => {
 
 client.on('ready', () => {
 	console.log('Logged In! Listing Guilds');
-	client.user.setGame(tokens.prefix + 'help')
+	client.user.setGame('The Healing Beat | ' + tokens.prefix + 'help')
 	client.guilds.forEach(guild => {
 		setTimeout(() => {
 			console.log(guild.name + ": Owned by " + guild.owner.displayName)
@@ -1436,10 +1512,8 @@ client.on('guildDelete', guild => {
 client.setInterval(() => {
 	if (Object.keys(guilds).length > 0) {
 		client.guilds.forEach(guild => {
-			if (guilds[guild.id].playing) {
-				console.log("Resetting message limiter for " + guild.name + " now!")
-				guilds[guild.id].msgLimiter = []
-			}
+			console.log("Resetting message limiter for " + guild.name + " now!")
+			guilds[guild.id].msgLimiter = []
 		})
 	}
 }, 8000)
