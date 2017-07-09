@@ -396,7 +396,7 @@ const commands = {
 	'help': (msg) => {
 		msg.channel.send("", {
 			embed: {
-				color: 14289237,
+				color: 39738,
 				title: 'Bot Information and Commands',
 				description: 'Hi! This dialog is here to provide useful information about bot usage!',
 				fields: [{
@@ -446,7 +446,7 @@ const commands = {
 				{
 					name: '**Command Usage** __(Only for commands with parameters)__',
 					value: '```fix\n' + tokens.prefix + 'play 	 [term] [url] [id]\n' +
-					tokens.prefix + 'addlist   [playlist id]\n' +
+					tokens.prefix + 'addlist   [term] [url] [id]\n' +
 					tokens.prefix + 'search    [term to search]\n' +
 					tokens.prefix + 'related   [term]\n' +
 					tokens.prefix + 'setvoice  [voice channel name]\n' +
@@ -1438,51 +1438,53 @@ String.prototype.toHHMMSS = function () {
 
 client.on('message', msg => {
 	if (!msg.content.startsWith(tokens.prefix)) return;
-	if (commands.hasOwnProperty(msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0])) {
-		console.log("Command emitted by guild " + msg.guild.name + " (id: " + msg.guild.id + "): " + msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0])
-		// if (!guilds[msg.guild.id] || guilds[msg.guild.id].textChannel === undefined || guilds[msg.guild.id].voiceChannel === undefined || Object.keys(guilds[msg.guild.id].textChannel).length === 0 || Object.keys(guilds[msg.guild.id].voiceChannel).length === 0) {
-		// 	console.log("Channel hasn't been added to database, setting up now")
-		// 	guilds[msg.guild.id] = {};
-		// 	init(msg);
-		// 	if (guilds[msg.guild.id].textChannel !== undefined && guilds[msg.guild.id].voiceChannel !== undefined) {
-		// 		msg.channel.send("Hi! Since this is the first run I set the channels by default to #**" + guilds[msg.guild.id].textChannel.name + "** for bot commands, and **" + guilds[msg.guild.id].voiceChannel.name + "** for audio!\nSet a text channel with " + tokens.prefix + "**settext** and voice channel with " + tokens.prefix + "**setvoice**");
+	if (!guilds[msg.guild.id] || guilds[msg.guild.id].textChannel === undefined || guilds[msg.guild.id].voiceChannel === undefined || Object.keys(guilds[msg.guild.id].textChannel).length === 0 || Object.keys(guilds[msg.guild.id].voiceChannel).length === 0) {
+		console.log("Channel hasn't been added to database, setting up now")
+		guilds[msg.guild.id] = {};
+		init(msg.guild);
+		if (guilds[msg.guild.id].textChannel !== undefined && guilds[msg.guild.id].voiceChannel !== undefined) {
+			msg.channel.send("Hi! Since this is my first time in your server I set the channels by default to #**" + guilds[msg.guild.id].textChannel.name + "** for bot commands, and **" + guilds[msg.guild.id].voiceChannel.name + "** for audio!\nSet a text channel with " + tokens.prefix + "**settext** and voice channel with " + tokens.prefix + "**setvoice**");
 
-		// 		setTimeout(function () {
-		// 			if (commands.hasOwnProperty(msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0])) {
-		// 				console.log(commands[msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0]])
-		// 				if (commands[msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0]] !== '-reset' || commands[msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0]] !== '-stop') {
-		// 					msg.reply("Retrying command")
-		// 					setTimeout(function () {
-		// 						commands[msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0]](msg);
-		// 					}, 250);
-		// 				}
-		// 			}
-		// 		}, 500);
-		// 	}
-		// } else {
-		//console.log("Guild is registered in database, moving on!")
-		let userString = msg.author.username
-		if (guilds[msg.guild.id].msgLimiter.userString !== undefined) {
-			if (checkUser(guilds[msg.guild.id].msgLimiter.userString)) {
-				console.log(guilds[msg.guild.id].msgLimiter)
-				console.log("I should be running your command!")
-				commands[msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0]](msg)
-			} else {
-				msg.reply("You've sent too many messages! Wait a few seconds and try again!")
-			}
-		} else {
-			console.log("Should be running it!")
-			guilds[msg.guild.id].msgLimiter.userString = { num: 1 }
-			commands[msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0]](msg)
+			setTimeout(function () {
+				if (commands.hasOwnProperty(msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0])) {
+					console.log(commands[msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0]])
+					if (msg.content.toLowerCase() !== '-song' && msg.content.toLowerCase() !== '-pause' && msg.content.toLowerCase() !== '-resume' && msg.content.toLowerCase() !== '-skip' && msg.content.toLowerCase() !== '-replay') {
+						msg.reply("Retrying command")
+						setTimeout(function () {
+							commands[msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0]](msg);
+						}, 250);
+					}
+				}
+			}, 500);
 		}
-		//}
 	} else {
-		console.log("Message doesn't have a property, is it a collector command?")
-		if (msg.content.toLowerCase() !== '-song' && msg.content.toLowerCase() !== '-pause' && msg.content.toLowerCase() !== '-resume' && msg.content.toLowerCase() !== '-skip' && msg.content.toLowerCase() !== '-replay') {
-			msg.channel.send("I don't have a command for that! Let me show you what I can do.")
-			setTimeout(() => {
-				commands.help(msg)
-			}, 3000)
+		if (commands.hasOwnProperty(msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0])) {
+			console.log("Command emitted by guild " + msg.guild.name + " (id: " + msg.guild.id + "): " + msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0])
+
+			console.log("Guild is registered in database, moving on!")
+			let userString = msg.author.username
+			if (guilds[msg.guild.id].msgLimiter.userString !== undefined) {
+				if (checkUser(guilds[msg.guild.id].msgLimiter.userString)) {
+					console.log(guilds[msg.guild.id].msgLimiter)
+					console.log("I should be running your command!")
+					commands[msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0]](msg)
+				} else {
+					msg.reply("You've sent too many messages! Wait a few seconds and try again!")
+				}
+			} else {
+				console.log("Should be running it!")
+				guilds[msg.guild.id].msgLimiter.userString = { num: 1 }
+				commands[msg.content.toLowerCase().slice(tokens.prefix.length).split(' ')[0]](msg)
+			}
+			//}
+		} else {
+			console.log("Message doesn't have a property, is it a collector command?")
+			if (msg.content.toLowerCase() !== '-song' && msg.content.toLowerCase() !== '-pause' && msg.content.toLowerCase() !== '-resume' && msg.content.toLowerCase() !== '-skip' && msg.content.toLowerCase() !== '-replay') {
+				msg.channel.send("I don't have a command for that! Let me show you what I can do.")
+				setTimeout(() => {
+					commands.help(msg)
+				}, 3000)
+			}
 		}
 	}
 });
@@ -1512,13 +1514,15 @@ client.on('guildDelete', guild => {
 client.setInterval(() => {
 	if (Object.keys(guilds).length > 0) {
 		client.guilds.forEach(guild => {
-			console.log("Resetting message limiter for " + guild.name + " now!")
-			guilds[guild.id].msgLimiter = []
+			if (guild[guild.id].msgLimiter.length > 0) {
+				console.log("Resetting message limiter for " + guild.name + " now!")
+				guilds[guild.id].msgLimiter = []
+			}
 		})
 	}
 }, 8000)
 
-client.login(tokens.t_token)
+client.login(tokens.l_token)
 
 process.on('uncaughtException', (err) => {
 	if (err.code == 'ECONNRESET') {
