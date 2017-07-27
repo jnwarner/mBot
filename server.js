@@ -52,7 +52,7 @@ const commands = {
 					guilds[msg.guild.id].queue.rArray.splice(guilds[msg.guild.id].queue.rArray.indexOf(song), 1)
 				}
 				guilds[msg.guild.id].textChannel.send(`Playing: **${song.title}** as requested by: **${song.requester}**` + "\nGet information about the current song with -**song**!");
-				guilds[msg.guild.id].dispatcher = msg.guild.voiceConnection.playStream(yt(song.url, { audioonly: true, quality: 18 }), { passes: tokens.passes });
+				guilds[msg.guild.id].dispatcher = msg.guild.voiceConnection.playStream(yt(song.url, { audioonly: true, quality: 36 }), { passes: tokens.passes });
 
 				guilds[msg.guild.id].playing = true;
 
@@ -984,7 +984,7 @@ const commands = {
 		}
 	},
 	'settext': (msg) => {
-		if (messageCheck(msg, false, false, true)) {
+		if (msg.author.id === tokens.adminID) {
 			let channels = msg.guild.channels;
 			let term = msg.content.substring(msg.content.indexOf(' ') + 1);
 			if (term == '-settext') {
@@ -1004,10 +1004,61 @@ const commands = {
 					}
 				}
 			}
+			return;
+		}
+		if (msg.author.id === msg.guild.ownerID) {
+			let channels = msg.guild.channels;
+			let term = msg.content.substring(msg.content.indexOf(' ') + 1);
+			if (term == '-settext') {
+				msg.channel.send("No text channel was provided!\n" + "```Usage: " + tokens.prefix + "settext [text channel]```");
+			} else {
+				if (channels.find('name', term) === null) {
+					msg.reply("Couln't find a channel with that name!")
+				} else {
+					let toSet = channels.find('name', term);
+					console.log(toSet.id);
+					if (toSet.type !== 'text') {
+						msg.channel.send("You must provide the name of a text channel!\n" + "```Usage: " + tokens.prefix + "settext [text channel]```");
+					} else {
+						msg.reply("Okay! #**" + toSet.name + "** set as music bot command channel! Please issue further commands here!");
+						guilds[msg.guild.id].textChannel = toSet;
+						writeDB()
+					}
+				}
+			}
+			return;
+		}
+		for (i = 0; i < roles.length; i++) {
+			console.log(roles[i].name)
+			for (j = 0; j < guilds[msg.guild.id].moderators.length; j++) {
+				if (roles[i].name === guilds[msg.guild.id].moderators[j]) {
+					let channels = msg.guild.channels;
+					let term = msg.content.substring(msg.content.indexOf(' ') + 1);
+					if (term == '-settext') {
+						msg.channel.send("No text channel was provided!\n" + "```Usage: " + tokens.prefix + "settext [text channel]```");
+					} else {
+						if (channels.find('name', term) === null) {
+							msg.reply("Couln't find a channel with that name!")
+						} else {
+							let toSet = channels.find('name', term);
+							console.log(toSet.id);
+							if (toSet.type !== 'text') {
+								msg.channel.send("You must provide the name of a text channel!\n" + "```Usage: " + tokens.prefix + "settext [text channel]```");
+							} else {
+								msg.reply("Okay! #**" + toSet.name + "** set as music bot command channel! Please issue further commands here!");
+								guilds[msg.guild.id].textChannel = toSet;
+								writeDB()
+							}
+						}
+					}
+					return;
+				}
+			}
 		}
 	},
 	'setvoice': (msg) => {
-		if (messageCheck(msg, false, false, true)) {
+		let roles = msg.member.roles.array();
+		if (msg.author.id === tokens.adminID) {
 			let channels = msg.guild.channels;
 			let term = msg.content.substring(msg.content.indexOf(' ') + 1);
 			if (term == '-setvoice') {
@@ -1031,6 +1082,68 @@ const commands = {
 							writeDB()
 						}
 					}
+				}
+			}
+			return;
+		}
+		if (msg.author.id === msg.guild.ownerID) {
+			let channels = msg.guild.channels;
+			let term = msg.content.substring(msg.content.indexOf(' ') + 1);
+			if (term == '-setvoice') {
+				msg.channel.send("No voice channel was provided!\n" + "```Usage: " + tokens.prefix + "setvoice [voice channel]```");
+			} else {
+				if (channels.findAll('name', term) === null) {
+					msg.reply("I Couln't find a channel with that name! The channel name is case sensitive!")
+				} else {
+					let toSet = channels.findAll('name', term);
+					//console.log(toSet);
+					for (i = 0; i < toSet.length; i++) {
+						//console.log(toSet[i]);
+						if (toSet[i].type === 'voice') {
+							if (toSet[i].joinable === false) return msg.reply("I can't join that channel on my own! If you drag me in it will work, but it is not recommended!")
+							console.log(toSet[i].name + ' ' + toSet[i].id)
+							msg.reply("Okay! **" + toSet[i].name + "** set as music bot voice channel! Please issue further commands while in this channel!");
+							guilds[msg.guild.id].voiceChannel = toSet[i];
+							if (guilds[msg.guild.id].playing) {
+								join(guilds[msg.guild.id].voiceChannel)
+							}
+							writeDB()
+						}
+					}
+				}
+			}
+			return;
+		}
+		for (i = 0; i < roles.length; i++) {
+			console.log(roles[i].name)
+			for (j = 0; j < guilds[msg.guild.id].moderators.length; j++) {
+				if (roles[i].name === guilds[msg.guild.id].moderators[j]) {
+					let channels = msg.guild.channels;
+					let term = msg.content.substring(msg.content.indexOf(' ') + 1);
+					if (term == '-setvoice') {
+						msg.channel.send("No voice channel was provided!\n" + "```Usage: " + tokens.prefix + "setvoice [voice channel]```");
+					} else {
+						if (channels.findAll('name', term) === null) {
+							msg.reply("I Couln't find a channel with that name! The channel name is case sensitive!")
+						} else {
+							let toSet = channels.findAll('name', term);
+							//console.log(toSet);
+							for (i = 0; i < toSet.length; i++) {
+								//console.log(toSet[i]);
+								if (toSet[i].type === 'voice') {
+									if (toSet[i].joinable === false) return msg.reply("I can't join that channel on my own! If you drag me in it will work, but it is not recommended!")
+									console.log(toSet[i].name + ' ' + toSet[i].id)
+									msg.reply("Okay! **" + toSet[i].name + "** set as music bot voice channel! Please issue further commands while in this channel!");
+									guilds[msg.guild.id].voiceChannel = toSet[i];
+									if (guilds[msg.guild.id].playing) {
+										join(guilds[msg.guild.id].voiceChannel)
+									}
+									writeDB()
+								}
+							}
+						}
+					}
+					return;
 				}
 			}
 		}
@@ -1221,7 +1334,7 @@ function readDB(guild) {
 						guilds[guild.id].msgLimiter = []
 						guilds[guild.id].collector = new Discord.MessageCollector(guilds[guild.id].textChannel, m => m);
 
-						for (let i = guilds[guild.id].line; i < guilds[guild.id].line + 5; i++) {
+						for (let i = guilds[guild.id].line; i < guilds[guild.id].line + 10; i++) {
 							console.log(i)
 							yt.getInfo(lines[i], (err, info) => {
 								if (err) {
@@ -1251,8 +1364,6 @@ function readDB(guild) {
 									}, 2000)
 								})
 							}, 3000)
-						} else {
-							guilds[guild.id].textChannel.send("I rebooted, but the voice channel is empty! To start the music, join **" + guilds[guild.id].voiceChannel.name + "** and type **" + tokens.prefix + "start**!")
 						}
 					}
 				}
@@ -1479,7 +1590,7 @@ client.on('message', msg => {
 			//}
 		} else {
 			console.log("Message doesn't have a property, is it a collector command?")
-			if (msg.content.toLowerCase() !== '-song' && msg.content.toLowerCase() !== '-pause' && msg.content.toLowerCase() !== '-resume' && msg.content.toLowerCase() !== '-skip' && msg.content.toLowerCase() !== '-replay') {
+			if (msg.content.toLowerCase() !== '-song' && msg.content.toLowerCase() !== '-pause' && msg.content.toLowerCase() !== '-resume' && msg.content.toLowerCase() !== '-skip' && msg.content.toLowerCase() !== '-replay' && msg.channel.id === guilds[msg.guild.id].textChannel.id) {
 				msg.channel.send("I don't have a command for that! Let me show you what I can do.")
 				setTimeout(() => {
 					commands.help(msg)
@@ -1514,10 +1625,8 @@ client.on('guildDelete', guild => {
 client.setInterval(() => {
 	if (Object.keys(guilds).length > 0) {
 		client.guilds.forEach(guild => {
-			if (guild[guild.id].msgLimiter.length > 0) {
-				console.log("Resetting message limiter for " + guild.name + " now!")
-				guilds[guild.id].msgLimiter = []
-			}
+			console.log("Resetting message limiter for " + guild.name + " now!")
+			guilds[guild.id].msgLimiter = []
 		})
 	}
 }, 8000)
