@@ -10,6 +10,7 @@ const client = new Discord.Client()
 const YouTube = require('youtube-node')
 const yt_client = new YouTube()
 const request = require('request')
+const bBoard = require('billboard-top-100')
 
 yt_client.setKey(tokens.yt_token);
 
@@ -52,6 +53,7 @@ const commands = {
 					guilds[msg.guild.id].queue.rArray.splice(guilds[msg.guild.id].queue.rArray.indexOf(song), 1)
 				}
 				guilds[msg.guild.id].textChannel.send(`Playing: **${song.title}** as requested by: **${song.requester}**` + "\nGet information about the current song with -**song**!");
+				// quality: high - 18, med - 36
 				guilds[msg.guild.id].dispatcher = msg.guild.voiceConnection.playStream(yt(song.url, { audioonly: true, quality: 36 }), { passes: tokens.passes });
 
 				guilds[msg.guild.id].playing = true;
@@ -871,7 +873,7 @@ const commands = {
 						console.log(roles[i].name)
 						for (j = 0; j < guilds[msg.guild.id].moderators.length; j++) {
 							if (roles[i].name === guilds[msg.guild.id].moderators[j]) {
-								msg.channel.send("Clearing **" + guilds[msg.guild.id].queue.uArray.length + "** song" + (guilds[msg.guild.id].queue.uArray.length > 1 ? "" : "s") + " from the user queue!")
+								msg.channel.send("Clearing **" + guilds[msg.guild.id].queue.uArray.length + "** song" + (guilds[msg.guild.id].queue.uArray.length > 1 ? "s" : "") + " from the user queue!")
 								guilds[msg.guild.id].queue.uArray = []
 								return
 							}
@@ -1334,7 +1336,7 @@ function readDB(guild) {
 						guilds[guild.id].msgLimiter = []
 						guilds[guild.id].collector = new Discord.MessageCollector(guilds[guild.id].textChannel, m => m);
 
-						for (let i = guilds[guild.id].line; i < guilds[guild.id].line + 10; i++) {
+						for (let i = guilds[guild.id].line; i < guilds[guild.id].line + 5; i++) {
 							console.log(i)
 							yt.getInfo(lines[i], (err, info) => {
 								if (err) {
@@ -1364,6 +1366,18 @@ function readDB(guild) {
 									}, 2000)
 								})
 							}, 3000)
+
+							for (let i = guilds[guild.id].line; i < guilds[guild.id].line + 15; i++) {
+								console.log(i)
+								yt.getInfo(lines[i], (err, info) => {
+									if (err) {
+										console.log('Invalid YouTube Link: ' + err);
+									} else {
+										guilds[guild.id].queue.rArray.push({ url: lines[i], title: info.title, requester: 'Radio Jesus' });
+										console.log(guild.name + "'s Radio index: " + i + `\nadded ${info.title} to ${guild.name}'s queue\n`);
+									}
+								});
+							}
 						}
 					}
 				}
