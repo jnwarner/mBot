@@ -1604,7 +1604,7 @@ client.on('message', msg => {
 			//}
 		} else {
 			console.log("Message doesn't have a property, is it a collector command?")
-			if (msg.content.toLowerCase() !== '-song' && msg.content.toLowerCase() !== '-pause' && msg.content.toLowerCase() !== '-resume' && msg.content.toLowerCase() !== '-skip' && msg.content.toLowerCase() !== '-replay' && msg.channel.id === guilds[msg.guild.id].textChannel.id) {
+			if (msg.content.toLowerCase() !== tokens.prefix + 'song' && msg.content.toLowerCase() !== tokens.prefix + 'pause' && msg.content.toLowerCase() !== tokens.prefix + 'resume' && msg.content.toLowerCase() !== tokens.prefix + 'skip' && msg.content.toLowerCase() !== tokens.prefix + 'replay' && msg.channel.id === guilds[msg.guild.id].textChannel.id) {
 				msg.channel.send("I don't have a command for that! Let me show you what I can do.")
 				setTimeout(() => {
 					commands.help(msg)
@@ -1616,7 +1616,7 @@ client.on('message', msg => {
 
 client.on('ready', () => {
 	console.log('Logged In! Listing Guilds');
-	client.user.setGame('The Healing Beat | ' + tokens.prefix + 'help')
+	// client.user.setGame('The Healing Beat | ' + tokens.prefix + 'help')
 	client.guilds.forEach(guild => {
 		setTimeout(() => {
 			console.log(guild.name + ": Owned by " + guild.owner.displayName)
@@ -1645,7 +1645,7 @@ client.setInterval(() => {
 	}
 }, 8000)
 
-client.login(tokens.l_token)
+client.login(tokens.t_token)
 
 process.on('uncaughtException', (err) => {
 	if (err.code == 'ECONNRESET') {
